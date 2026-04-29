@@ -1,0 +1,82 @@
+---
+import BrandIcon from './BrandIcon.astro';
+import Wordmark from './Wordmark.astro';
+---
+<nav id="site-nav">
+  <div class="container nav-inner">
+    <a href="#top" class="nav-brand" aria-label="Mandantor — Startseite">
+      <BrandIcon size={26} />
+      <Wordmark size={22} showLine={false} />
+    </a>
+
+    <div class="nav-links">
+      <a href="#how" class="tlink nav-link">So funktioniert es</a>
+      <a href="#features" class="tlink nav-link">Funktionen</a>
+      <a href="#status" class="tlink nav-link">Status</a>
+      <a href="#kontakt" class="tlink nav-link">Kontakt</a>
+      <a href="#kontakt" class="btn btn-ghost nav-cta">
+        Probelauf anfragen
+      </a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  #site-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition: background .2s ease, border-color .2s ease;
+  }
+  #site-nav.scrolled {
+    background: rgba(247, 245, 240, 0.92);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom-color: var(--rule);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+  .nav-link {
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .nav-cta {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 880px) {
+    .nav-links { gap: 16px; }
+    .nav-link { display: none; }
+    .nav-cta { padding: 8px 14px; font-size: 13px; }
+  }
+</style>
+
+<script>
+  // Add `scrolled` class once the user has scrolled past the top.
+  const nav = document.getElementById('site-nav');
+  if (nav) {
+    const onScroll = () => {
+      if (window.scrollY > 4) nav.classList.add('scrolled');
+      else nav.classList.remove('scrolled');
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+</script>

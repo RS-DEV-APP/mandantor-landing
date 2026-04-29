@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import HowItWorks from '../components/HowItWorks.jsx';
+import Features from '../components/Features.astro';
+import Status from '../components/Status.astro';
+import SecondaryCTA from '../components/SecondaryCTA.jsx';
+import Footer from '../components/Footer.astro';
+---
+<Layout title="Mandantor — Mandanten-Onboarding für Kanzleien">
+  <Nav />
+  <Hero />
+  <HowItWorks client:load />
+  <Features />
+  <Status />
+  <SecondaryCTA client:load />
+  <Footer />
+</Layout>

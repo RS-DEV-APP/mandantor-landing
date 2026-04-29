@@ -1,0 +1,27 @@
+---
+interface Props {
+  size?: number;
+  fg?: string;
+  bg?: string;
+  accent?: string;
+}
+const { size = 32, fg = 'var(--ink)', bg = 'transparent', accent = 'var(--gold)' } = Astro.props;
+---
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 32 32"
+  style="display: block;"
+  role="img"
+  aria-label="Mandantor"
+>
+  <rect x="0.5" y="0.5" width="31" height="31" fill={bg} stroke={fg} stroke-width="1" />
+  <path
+    d="M 7.5 23 L 7.5 9 L 11.2 9 L 16 17 L 20.8 9 L 24.5 9 L 24.5 23"
+    fill="none"
+    stroke={fg}
+    stroke-width="1.6"
+    stroke-linejoin="miter"
+  />
+  <line x1="7.5" y1="26.5" x2="24.5" y2="26.5" stroke={accent} stroke-width="1" />
+</svg>

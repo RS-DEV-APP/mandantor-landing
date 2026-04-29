@@ -1,0 +1,42 @@
+---
+interface Props {
+  size?: number;
+  color?: string;
+  accent?: string;
+  showLine?: boolean;
+}
+const { size = 28, color = 'var(--ink)', accent = 'var(--gold)', showLine = true } = Astro.props;
+const lineBottom = -size * 0.18;
+---
+<span
+  class="serif wordmark"
+  style={`font-size: ${size}px; color: ${color};`}
+>
+  <span>Mandantor</span>
+  {showLine && (
+    <span
+      aria-hidden="true"
+      class="wordmark-line"
+      style={`bottom: ${lineBottom}px; background: ${accent};`}
+    />
+  )}
+</span>
+
+<style>
+  .wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    font-family: var(--serif);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    position: relative;
+    user-select: none;
+  }
+  .wordmark-line {
+    position: absolute;
+    left: 0;
+    right: 12%;
+    height: 1px;
+  }
+</style>

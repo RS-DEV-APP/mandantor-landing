@@ -1,0 +1,146 @@
+---
+// STATUS — honest discovery transparency. Replaces "social proof" without
+// faking testimonials. Builds trust by being plainspoken about state.
+//
+// HINWEIS: Milestones spiegeln den ECHTEN Stand wider — bewusst nicht
+// erfunden. Bei Fortschritt jeweils Datum aktualisieren.
+const milestones = [
+  { date: 'Februar 2026', label: 'Konzeptphase abgeschlossen', state: 'done' },
+  { date: 'April 2026', label: 'Tally-Umfrage zur Bedarfs­erhebung läuft', state: 'active' },
+  { date: 'Sommer 2026', label: 'Geschlossene Pilotphase mit drei Kanzleien geplant', state: 'next' },
+  { date: 'Q4 2026', label: 'Öffentlicher Beta-Zugang vorgesehen', state: 'planned' },
+];
+
+// Datum im Header — manuell aktualisieren beim nächsten Review
+const lastReviewed = '29. April 2026';
+---
+<section id="status" class="status tint">
+  <div class="container">
+    <div class="status-marker-row">
+      <span class="marker">
+        <span class="pilcrow">§</span>
+        <span>04 — Stand der Dinge</span>
+      </span>
+      <span class="mono">Stand: {lastReviewed}</span>
+    </div>
+
+    <div class="status-grid">
+      <div>
+        <h2 class="serif status-title">
+          Wir sind ehrlich, wo wir stehen.
+        </h2>
+        <p class="lead status-lead">
+          Mandantor ist in der Discovery-Phase. Es gibt noch keine zahlenden Kunden,
+          keinen produktiven Code und keinen Marketing-Budget-Topf. Was es gibt:
+          eine klare These, eine wachsende Liste interessierter Kanzleien und
+          eine Person, die das Produkt mit Sorgfalt aufbaut.
+        </p>
+        <div class="status-author">
+          <span class="mono">Verantwortlich</span>
+          <span class="serif status-name">Charlotte Sieweke</span>
+          <span class="status-role">Gründerin · Düsseldorf · charlotte@mandantor.de</span>
+        </div>
+      </div>
+
+      <ol class="status-timeline">
+        {milestones.map((m, i) => (
+          <li class={`status-milestone state-${m.state}${i === milestones.length - 1 ? ' is-last' : ''}`}>
+            <span class="mono status-date">{m.date}</span>
+            <span class="status-dot" aria-hidden="true" />
+            <span class="status-label">
+              {m.label}
+              {m.state === 'active' && <span class="mono status-active-tag">· laufend</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</section>
+
+<style>
+  .status {
+    padding: 120px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .status-marker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 56px;
+  }
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+  .status-title {
+    font-size: clamp(32px, 4vw, 44px);
+    max-width: 18ch;
+    margin-bottom: 24px;
+    line-height: 1.15;
+  }
+  .status-lead { font-size: 17px; }
+  .status-author {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .status-name {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .status-role {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .status-timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .status-milestone {
+    display: grid;
+    grid-template-columns: 160px 24px 1fr;
+    gap: 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  .status-milestone.is-last { border-bottom: 0; }
+  .status-date { font-size: 11.5px; }
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 10px;
+    margin-top: 6px;
+    justify-self: start;
+  }
+  .state-done .status-dot { background: var(--ink); }
+  .state-active .status-dot { background: var(--gold); }
+  .state-next .status-dot,
+  .state-planned .status-dot {
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+  }
+  .status-label {
+    font-size: 16px;
+    color: var(--ink-2);
+  }
+  .state-planned .status-label { color: var(--muted); }
+  .state-active .status-label {
+    font-style: italic;
+    font-family: var(--serif);
+  }
+  .status-active-tag { color: var(--gold); margin-left: 12px; }
+
+  @media (max-width: 880px) {
+    .status { padding: 64px 0; }
+    .status-marker-row { flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 32px; }
+    .status-grid { grid-template-columns: 1fr; gap: 32px; }
+    .status-milestone { grid-template-columns: 110px 16px 1fr; gap: 12px; }
+  }
+</style>

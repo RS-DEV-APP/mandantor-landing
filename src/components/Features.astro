@@ -1,0 +1,135 @@
+---
+const items = [
+  {
+    n: '01',
+    title: 'Ein Link statt acht Anhänge.',
+    body: 'Statt PDF-Vollmacht, PDF-Datenschutz, Word-Datei für Stammdaten und einer separaten E-Mail mit „bitte unterschrieben zurück" — schicken Sie einen Link. Der Mandant erledigt alles in einer Sitzung, am Schreibtisch oder am Telefon.',
+    kicker: 'Vor­bereitung',
+    bullets: ['Vorausgefüllt von der Kanzlei', 'Mobil und Desktop', 'Speichert automatisch'],
+  },
+  {
+    n: '02',
+    title: 'DSGVO-konform, sichtbar dokumentiert.',
+    body: 'Datenhaltung ausschließlich in Frankfurt am Main. Auftragsverarbeitungs­vertrag und Verfahrensverzeichnis liegen unterschriftsbereit vor. Verschlüsselte Übertragung, verschlüsselte Ablage, automatische Löschfristen.',
+    kicker: 'Daten­schutz',
+    bullets: ['Hosting in DE (ISO 27001)', 'AVV vorbereitet', 'Auto-Löschung nach Mandatsabschluss'],
+  },
+  {
+    n: '03',
+    title: 'Übergabe in Ihr System.',
+    body: 'Was bei Ihnen ankommt: ein strukturierter Datensatz, ein PDF-Dossier mit Unterschriften, alle Anlagen sortiert. Optional Export in DATEV, RA-Micro oder advoware. Kein Copy-and-Paste mehr.',
+    kicker: 'Über­gabe',
+    bullets: ['Strukturierter JSON / CSV-Export', 'Signiertes PDF-Dossier', 'Schnittstelle zu RA-Micro & DATEV'],
+  },
+];
+---
+<section id="features" class="features">
+  <div class="container">
+    <div class="features-marker-row">
+      <span class="marker">
+        <span class="pilcrow">§</span>
+        <span>03 — Was es leistet</span>
+      </span>
+      <span class="mono">Drei Punkte. Mehr braucht es nicht.</span>
+    </div>
+
+    <div class="features-list">
+      {items.map((item, i) => (
+        <article class={`feature${i === items.length - 1 ? ' is-last' : ''}`}>
+          <div class="feature-num-block">
+            <span class="serif feature-num">{item.n}</span>
+            <span class="mono">{item.kicker}</span>
+          </div>
+
+          <div>
+            <h3 class="serif feature-title">{item.title}</h3>
+          </div>
+
+          <div class="feature-body-block">
+            <p class="feature-body">{item.body}</p>
+            <ul class="feature-bullets">
+              {item.bullets.map((b) => (
+                <li class="feature-bullet">
+                  <span class="mono feature-bullet-dash">—</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features { padding: 120px 0; }
+  .features-marker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 56px;
+  }
+  .features-list { display: flex; flex-direction: column; }
+  .feature {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr;
+    gap: 56px;
+    padding: 56px 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .feature.is-last { border-bottom: 1px solid var(--rule); }
+  .feature-num-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .feature-num {
+    font-size: 48px;
+    color: var(--gold);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .feature-title {
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    max-width: 18ch;
+  }
+  .feature-body-block {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .feature-body {
+    font-size: 16.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .feature-bullets {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .feature-bullet {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .feature-bullet-dash { color: var(--muted-2); }
+
+  @media (max-width: 880px) {
+    .features { padding: 64px 0; }
+    .features-marker-row { flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 32px; }
+    .feature { grid-template-columns: 1fr; gap: 16px; padding: 32px 0; }
+    .feature-num { font-size: 36px; }
+    .feature-title { font-size: 24px; }
+  }
+</style>

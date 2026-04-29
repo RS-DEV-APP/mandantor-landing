@@ -1,0 +1,151 @@
+---
+// Hero — typography-first. Editorial layout with section marker,
+// long display headline, lead paragraph, two CTAs, and a quiet
+// metadata strip that previews the product without a screenshot.
+---
+<section id="top" class="hero">
+  <div class="container">
+    {/* Marker row */}
+    <div class="hero-marker-row">
+      <span class="marker">
+        <span class="pilcrow">§</span>
+        <span>01 — Einleitung</span>
+      </span>
+      <span class="mono hero-marker-meta">
+        Discovery · Aufnahme von Pilot­kanzleien
+      </span>
+    </div>
+
+    {/* Headline */}
+    <h1 class="serif hero-title">
+      Mandanten&shy;onboarding,<br />
+      das einfach <em>läuft</em>.
+    </h1>
+
+    {/* Lead + CTAs */}
+    <div class="hero-grid">
+      <p class="lead hero-lead">
+        Stammdaten, Vollmacht, DSGVO-Belehrung, Honorarvereinbarung
+        und Dokumenten-Upload &mdash; aus einem Link.
+        Ihr Mandat erhält einen klaren ersten Eindruck.
+        Ihr Sekretariat spart die ersten dreißig Minuten.
+      </p>
+
+      <div class="hero-cta-block">
+        <div class="hero-cta-row">
+          <a href="#kontakt" class="btn">
+            <span>Probelauf anfragen</span>
+            <span class="arrow">→</span>
+          </a>
+          <a href="#how" class="btn btn-ghost">
+            <span>Wie es funktioniert</span>
+          </a>
+        </div>
+        <span class="mono hero-cta-meta">
+          Kein Vertrieb. Keine Demo-Schleife. 4 Fragen, 90 Sekunden.
+        </span>
+      </div>
+    </div>
+
+    {/* Metadata strip — book colophon energy */}
+    <div class="hero-meta">
+      <hr class="rule" />
+      <div class="hero-meta-grid">
+        <div class="meta">
+          <span class="mono">Hosting</span>
+          <span class="serif meta-value">Frankfurt, DE</span>
+          <span class="meta-sub">EU-Rechenzentrum, ISO 27001</span>
+        </div>
+        <div class="meta">
+          <span class="mono">Konformität</span>
+          <span class="serif meta-value">DSGVO</span>
+          <span class="meta-sub">Auftragsverarbeitung dokumentiert</span>
+        </div>
+        <div class="meta">
+          <span class="mono">Zielgruppe</span>
+          <span class="serif meta-value">Kanzleien bis ~20</span>
+          <span class="meta-sub">Einzel- und mittelständisch</span>
+        </div>
+        <div class="meta">
+          <span class="mono">Stand</span>
+          <span class="serif meta-value">April 2026</span>
+          <span class="meta-sub">Discovery · Pilot­plätze offen</span>
+        </div>
+      </div>
+      <hr class="rule" />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-top: 168px;
+    padding-bottom: 96px;
+    position: relative;
+  }
+  .hero-marker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 80px;
+  }
+  .hero-marker-meta { color: var(--muted); }
+  .hero-title {
+    font-size: clamp(48px, 7.2vw, 96px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    max-width: 15ch;
+  }
+  .hero-title em { font-style: italic; color: var(--ink); }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    margin-top: 56px;
+    align-items: start;
+  }
+  .hero-lead { max-width: 46ch; }
+
+  .hero-cta-block {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-self: end;
+  }
+  .hero-cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hero-cta-meta { color: var(--muted); }
+
+  .hero-meta { margin-top: 120px; }
+  .hero-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 24px 0;
+    gap: 32px;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .meta-value {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .meta-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 880px) {
+    .hero { padding-top: 120px; padding-bottom: 56px; }
+    .hero-marker-row { margin-bottom: 40px; flex-direction: column; gap: 8px; align-items: flex-start; }
+    .hero-grid { grid-template-columns: 1fr; gap: 32px; margin-top: 32px; }
+    .hero-meta { margin-top: 64px; }
+    .hero-meta-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+  }
+</style>

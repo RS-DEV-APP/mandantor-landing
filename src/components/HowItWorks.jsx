@@ -22,8 +22,8 @@ const STEPS = [
       {
         type: 'split',
         items: [
-          { label: 'PLZ', placeholder: '40213' },
-          { label: 'Ort', placeholder: 'Düsseldorf' },
+          { label: 'PLZ', placeholder: '80331' },
+          { label: 'Ort', placeholder: 'München' },
         ],
       },
       { type: 'text', label: 'E-Mail', placeholder: 'maria.schneider@…' },

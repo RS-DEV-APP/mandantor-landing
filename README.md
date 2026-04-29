@@ -10,7 +10,7 @@ Editoriale Landing Page für mandantor.de. Astro mit React-Inseln für die inter
 | Was | Wo | Warum |
 |---|---|---|
 | Adresse einfügen | `src/pages/impressum.astro` und `src/pages/datenschutz.astro` (Platzhalter `[Straße…]`) | Pflichtangabe nach § 5 TMG |
-| Aufsichtsbehörde prüfen | `src/pages/datenschutz.astro` Abschnitt 7 | aktuell auf NRW (LDI) gesetzt — falls Düsseldorf nicht stimmt, anpassen |
+| Aufsichtsbehörde prüfen | `src/pages/datenschutz.astro` Abschnitt 7 | aktuell auf Bayern (BayLDA Ansbach) gesetzt — bei Standortwechsel anpassen |
 | Formspree-ID setzen | `src/components/SecondaryCTA.jsx` Konstante `FORMSPREE_ENDPOINT` | sonst funktioniert das Pilot-Formular nicht (siehe „Formspree einrichten" unten) |
 | Milestones im Status-Block aktualisieren | `src/components/Status.astro` | wenn sich der reale Stand ändert (Pilotphase startet, Kanzleien hinzukommen) |
 

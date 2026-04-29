@@ -10,7 +10,7 @@
 import { useState } from 'react';
 
 // TODO Rolf: Formspree-ID einsetzen (siehe landing-page/README.md, Schritt 4)
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID';
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xeenjkea';
 
 export default function SecondaryCTA() {
   const [email, setEmail] = useState('');

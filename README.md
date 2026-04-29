@@ -62,7 +62,7 @@ Status-Sektion wird nach Push in 1–2 Min live.
 ## Formspree einrichten (Pflicht, damit das Pilot-Formular funktioniert)
 
 1. Auf [formspree.io](https://formspree.io) Konto anlegen (kostenlos, 50 Submissions/Monat)
-2. Neues Formular erstellen → E-Mail-Empfänger: `rolf@mandantor.de`
+2. Neues Formular erstellen → E-Mail-Empfänger: `hello@mandantor.de`
 3. Formspree gibt dir eine URL der Form `https://formspree.io/f/abcd1234`
 4. Diese URL in `src/components/SecondaryCTA.jsx` als `FORMSPREE_ENDPOINT` einsetzen
 5. Lokal kurz testen oder direkt deployen

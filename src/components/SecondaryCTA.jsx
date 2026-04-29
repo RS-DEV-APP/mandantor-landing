@@ -119,8 +119,8 @@ export default function SecondaryCTA() {
               {status === 'error' && (
                 <p className="cta-error mono">
                   Senden fehlgeschlagen. Bitte direkt an{' '}
-                  <a href="mailto:rolf@mandantor.de" className="tlink">
-                    rolf@mandantor.de
+                  <a href="mailto:hello@mandantor.de" className="tlink">
+                    hello@mandantor.de
                   </a>{' '}
                   schreiben.
                 </p>
@@ -134,7 +134,7 @@ export default function SecondaryCTA() {
               </h3>
               <p className="cta-success-text">
                 Wir melden uns persönlich, nicht aus einem Marketing-Postfach.
-                Antwort kommt von rolf@mandantor.de.
+                Antwort kommt von hello@mandantor.de.
               </p>
             </div>
           )}

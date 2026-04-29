@@ -19,9 +19,9 @@
   --gold-soft: #C8B48E;
 
   /* Type */
-  --serif: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: 'Source Serif 4 Variable', 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  --sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Scale */
   --fs-mono: 11.5px;

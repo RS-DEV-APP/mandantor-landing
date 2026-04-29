@@ -4,12 +4,12 @@
 // Bedarfserhebung; dieses Inline-Formular ist nur für Pilot-Anmeldungen
 // (Kanzleien, die jetzt schon mitmachen wollen).
 //
-// Submission läuft über Formspree (kostenlos, Mail an Charlotte).
+// Submission läuft über Formspree (kostenlos, Mail an Rolf).
 // Setup: https://formspree.io → neues Formular anlegen → ID in
 // FORMSPREE_ENDPOINT unten einsetzen.
 import { useState } from 'react';
 
-// TODO Charlotte: Formspree-ID einsetzen (siehe landing-page/README.md, Schritt 4)
+// TODO Rolf: Formspree-ID einsetzen (siehe landing-page/README.md, Schritt 4)
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID';
 
 export default function SecondaryCTA() {
@@ -90,7 +90,7 @@ export default function SecondaryCTA() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="charlotte@kanzlei-sieweke.de"
+                  placeholder="rolf@kanzlei-sieweke.de"
                   className="cta-input"
                 />
               </label>
@@ -119,8 +119,8 @@ export default function SecondaryCTA() {
               {status === 'error' && (
                 <p className="cta-error mono">
                   Senden fehlgeschlagen. Bitte direkt an{' '}
-                  <a href="mailto:charlotte@mandantor.de" className="tlink">
-                    charlotte@mandantor.de
+                  <a href="mailto:rolf@mandantor.de" className="tlink">
+                    rolf@mandantor.de
                   </a>{' '}
                   schreiben.
                 </p>
@@ -134,7 +134,7 @@ export default function SecondaryCTA() {
               </h3>
               <p className="cta-success-text">
                 Wir melden uns persönlich, nicht aus einem Marketing-Postfach.
-                Antwort kommt von charlotte@mandantor.de.
+                Antwort kommt von rolf@mandantor.de.
               </p>
             </div>
           )}

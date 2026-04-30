@@ -283,13 +283,23 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
               )}
 
               {files.length < MAX_FILES_PER_AKTE && (
-                <form method="post" action="/api/m/upload" enctype="multipart/form-data" style="display: flex; gap: 12px; align-items: flex-end;">
+                <form method="post" action="/api/m/upload" enctype="multipart/form-data" class="upload-form">
                   <input type="hidden" name="token" value={token} />
                   <label class="app-label" style="flex: 1; margin-bottom: 0;">
-                    <span class="app-label-text">Datei wählen</span>
-                    <input class="app-input" type="file" name="file" required accept={ALLOWED_UPLOAD_EXTENSIONS.join(',')} />
+                    <span class="app-label-text">Datei wählen — Upload startet automatisch</span>
+                    <input
+                      class="app-input upload-file-input"
+                      type="file"
+                      name="file"
+                      required
+                      accept={ALLOWED_UPLOAD_EXTENSIONS.join(',')}
+                      onchange="this.form.querySelector('.upload-status').textContent='Wird hochgeladen…'; this.disabled=true; this.form.submit();"
+                    />
                   </label>
-                  <button type="submit" class="cta-button cta-button--small">Hochladen</button>
+                  <p class="upload-status" style="font-size: 13px; color: var(--muted); margin: 8px 0 0 0; min-height: 18px;"></p>
+                  <noscript>
+                    <button type="submit" class="cta-button cta-button--small" style="margin-top: 12px;">Hochladen</button>
+                  </noscript>
                 </form>
               )}
             </div>
@@ -343,4 +353,6 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
     padding: 10px 18px;
     font-size: 13px;
   }
+  .upload-form { display: block; }
+  .upload-file-input:disabled { opacity: 0.5; cursor: progress; }
 </style>

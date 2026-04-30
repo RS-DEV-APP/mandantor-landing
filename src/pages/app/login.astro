@@ -25,8 +25,13 @@ const error = url.searchParams.get('error');
 
       {sent ? (
         <p class="app-success">
-          <strong>Link versendet.</strong> Schauen Sie in Ihr E-Mail-Postfach
+          <strong>Link erstellt.</strong> Schauen Sie in Ihr E-Mail-Postfach
           (auch im Spam-Ordner). Der Link ist 15 Minuten gültig.
+          <br /><br />
+          <span style="font-size: 13px; color: var(--muted);">
+            Während der Setup-Phase: Falls keine Mail kommt, finden Sie den Link
+            in den Cloudflare-Functions-Logs des Pages-Projekts.
+          </span>
         </p>
       ) : (
         <form method="post" action="/api/auth/login" style="margin-top: 32px;">

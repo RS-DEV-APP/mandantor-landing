@@ -1,0 +1,346 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { findAkteByMandantToken } from '../../lib/akten';
+import { findKanzleiById } from '../../lib/db';
+import { listSteps, listFiles, STEP_LABELS, STEP_COUNT, MAX_UPLOAD_BYTES, MAX_FILES_PER_AKTE, ALLOWED_UPLOAD_EXTENSIONS } from '../../lib/mandant';
+
+export const prerender = false;
+
+const env = Astro.locals.runtime?.env;
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const token = Astro.params.token ?? '';
+const akte = await findAkteByMandantToken(env.DB, token);
+if (!akte) return new Response('Nicht gefunden', { status: 404 });
+
+const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);
+if (!kanzlei) return new Response('Kanzlei nicht gefunden', { status: 404 });
+
+const steps = await listSteps(env.DB, akte.id);
+const files = await listFiles(env.DB, akte.id);
+const signedSteps = new Set(steps.filter((s) => s.signed_at).map((s) => s.step_no));
+const allSignedExceptUpload = [1, 2, 3, 4].every((n) => signedSteps.has(n));
+const isSubmitted = akte.status === 'submitted';
+
+const url = new URL(Astro.request.url);
+const stepParam = parseInt(url.searchParams.get('step') ?? '0', 10);
+
+let currentStep = stepParam;
+if (!currentStep || currentStep < 1 || currentStep > STEP_COUNT) {
+  // Default: first unsigned step, or 5 if all 1-4 done
+  const firstUnsigned = [1, 2, 3, 4, 5].find((n) => !signedSteps.has(n));
+  currentStep = firstUnsigned ?? 1;
+}
+
+const stepDataMap = new Map<number, Record<string, unknown>>();
+for (const s of steps) {
+  try { stepDataMap.set(s.step_no, JSON.parse(s.data_json)); } catch { /* ignore */ }
+}
+const data1 = (stepDataMap.get(1) ?? {}) as Record<string, string>;
+const data2 = stepDataMap.get(2) as { signed_name?: string } | undefined;
+const data3 = stepDataMap.get(3) as { signed_name?: string } | undefined;
+const data4 = stepDataMap.get(4) as { signed_name?: string } | undefined;
+
+const vollmachtText = (kanzlei.vollmacht_template?.trim()) || `Hiermit bevollmächtige ich die Kanzlei ${kanzlei.display_name}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+
+const honorarHourly = (kanzlei.honorar_hourly?.trim()) || '250,00 EUR netto je angefangener Stunde';
+const honorarAdvance = (kanzlei.honorar_advance?.trim()) || '500,00 EUR';
+const honorarText = `Mandant und Kanzlei ${kanzlei.display_name} vereinbaren ein Stundenhonorar in Höhe von ${honorarHourly} zuzüglich gesetzlicher Umsatzsteuer. Vor Tätigkeitsaufnahme wird ein Vorschuss in Höhe von ${honorarAdvance} fällig. Reisezeit gilt als Arbeitszeit. Die Abrechnung erfolgt im 6-Minuten-Takt. Diese Vereinbarung gilt nur außergerichtlich; im gerichtlichen Verfahren wird mindestens nach RVG abgerechnet.`;
+
+const dsgvoText = `Die Kanzlei ${kanzlei.display_name} verarbeitet Ihre personenbezogenen Daten gemäß Art. 6 Abs. 1 lit. b DSGVO zur Erfüllung des Mandatsverhältnisses sowie nach Art. 6 Abs. 1 lit. c DSGVO zur Erfüllung gesetzlicher Aufbewahrungspflichten. Daten werden bis zum Ablauf der gesetzlichen Aufbewahrungsfristen (i.d.R. 6 Jahre nach Mandatsende, in Einzelfällen länger) gespeichert. Sie haben jederzeit Anspruch auf Auskunft, Berichtigung, Löschung sowie Datenübertragbarkeit. Beschwerden sind an die zuständige Aufsichtsbehörde zu richten.`;
+
+const submittedDate = akte.submitted_at
+  ? new Date(akte.submitted_at * 1000).toLocaleString('de-DE')
+  : null;
+
+const baseTitle = akte.case_label ?? 'Mandanten-Onboarding';
+const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nachname}` : '';
+---
+<AppLayout title={`${baseTitle} — ${kanzlei.display_name}`}>
+  <main class="app-shell" style="max-width: 720px;">
+
+    <header style="margin-bottom: 32px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">{kanzlei.display_name}</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        Mandanten-Onboarding
+      </h1>
+      {akte.case_label && (
+        <p style="font-size: 15px; color: var(--muted); margin-top: 4px;">
+          Akte: {akte.case_label}
+        </p>
+      )}
+    </header>
+
+    {isSubmitted ? (
+      <div class="app-card" style="text-align: center; padding: 56px 40px;">
+        <span style="display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">
+          ✓ Abgeschlossen
+        </span>
+        <h2 class="serif" style="font-size: 28px; margin-bottom: 16px;">Vielen Dank.</h2>
+        <p style="color: var(--ink-2); font-size: 16px; line-height: 1.6;">
+          Ihre Angaben wurden am {submittedDate} an die Kanzlei {kanzlei.display_name} übermittelt.
+        </p>
+        <p style="color: var(--muted); font-size: 14px; margin-top: 24px;">
+          Sie können dieses Fenster schließen. Bei Rückfragen meldet sich die Kanzlei direkt bei Ihnen.
+        </p>
+      </div>
+    ) : (
+      <>
+        <nav class="step-nav" style="margin-bottom: 24px;">
+          <ol style="list-style: none; padding: 0; margin: 0; display: flex; gap: 8px; flex-wrap: wrap;">
+            {STEP_LABELS.map((label, idx) => {
+              const stepNo = idx + 1;
+              const done = signedSteps.has(stepNo);
+              const active = currentStep === stepNo;
+              return (
+                <li>
+                  <a
+                    href={`/m/${token}?step=${stepNo}`}
+                    style={`text-decoration: none; padding: 8px 14px; border: 1px solid ${active ? 'var(--ink)' : 'var(--rule)'}; background: ${active ? 'var(--ink)' : (done ? 'var(--paper-2, #f5f3ee)' : 'var(--paper)')}; color: ${active ? 'var(--paper)' : (done ? 'var(--ink)' : 'var(--muted)')}; font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; display: inline-block;`}
+                  >
+                    <span style="opacity: 0.6;">0{stepNo}</span>&nbsp;&nbsp;{label}
+                    {done && <span style="margin-left: 8px;">✓</span>}
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        {currentStep === 1 && (
+          <form method="post" action="/api/m/step" class="app-card">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="step_no" value="1" />
+            <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Stammdaten</h2>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+              Bitte tragen Sie Ihre Kontaktdaten ein. Diese benötigt die Kanzlei für Vollmacht und Korrespondenz.
+            </p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <label class="app-label">
+                <span class="app-label-text">Vorname *</span>
+                <input class="app-input" type="text" name="vorname" required value={data1.vorname ?? ''} />
+              </label>
+              <label class="app-label">
+                <span class="app-label-text">Nachname *</span>
+                <input class="app-input" type="text" name="nachname" required value={data1.nachname ?? ''} />
+              </label>
+            </div>
+
+            <label class="app-label">
+              <span class="app-label-text">Straße & Hausnummer *</span>
+              <input class="app-input" type="text" name="anschrift" required value={data1.anschrift ?? ''} />
+            </label>
+
+            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 16px;">
+              <label class="app-label">
+                <span class="app-label-text">PLZ *</span>
+                <input class="app-input" type="text" name="plz" required pattern="[0-9]{5}" value={data1.plz ?? ''} />
+              </label>
+              <label class="app-label">
+                <span class="app-label-text">Ort *</span>
+                <input class="app-input" type="text" name="ort" required value={data1.ort ?? ''} />
+              </label>
+            </div>
+
+            <label class="app-label">
+              <span class="app-label-text">Geburtsdatum *</span>
+              <input class="app-input" type="date" name="geburtsdatum" required value={data1.geburtsdatum ?? ''} />
+            </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <label class="app-label">
+                <span class="app-label-text">Telefon</span>
+                <input class="app-input" type="tel" name="telefon" value={data1.telefon ?? ''} />
+              </label>
+              <label class="app-label">
+                <span class="app-label-text">E-Mail *</span>
+                <input class="app-input" type="email" name="email" required value={data1.email ?? ''} />
+              </label>
+            </div>
+
+            <button type="submit" class="cta-button" style="margin-top: 16px;">
+              Speichern & weiter →
+            </button>
+          </form>
+        )}
+
+        {currentStep === 2 && (
+          <form method="post" action="/api/m/step" class="app-card">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="step_no" value="2" />
+            <input type="hidden" name="document_text" value={vollmachtText} />
+            <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Vollmacht</h2>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+              Bitte lesen Sie den folgenden Text und bestätigen Sie unten.
+            </p>
+            <div style="border: 1px solid var(--rule); padding: 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.65; color: var(--ink-2); background: #fafaf7;">
+              {vollmachtText}
+            </div>
+
+            <label class="app-label">
+              <span class="app-label-text">Vor- und Nachname zur Bestätigung *</span>
+              <input class="app-input" type="text" name="signed_name" required value={data2?.signed_name ?? fullName} />
+            </label>
+
+            <label style="display: flex; gap: 12px; align-items: flex-start; margin: 16px 0 24px; cursor: pointer;">
+              <input type="checkbox" name="confirm" required value="1" style="margin-top: 4px;" />
+              <span style="font-size: 14px; line-height: 1.5; color: var(--ink-2);">
+                Hiermit erteile ich die vorstehende Vollmacht. Ich verstehe, dass meine Bestätigung mit Datum und IP-Adresse protokolliert wird.
+              </span>
+            </label>
+
+            <button type="submit" class="cta-button">
+              Bestätigen & weiter →
+            </button>
+          </form>
+        )}
+
+        {currentStep === 3 && (
+          <form method="post" action="/api/m/step" class="app-card">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="step_no" value="3" />
+            <input type="hidden" name="document_text" value={dsgvoText} />
+            <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Datenschutz-Einwilligung</h2>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+              Bitte lesen Sie die Datenschutzhinweise und bestätigen Sie.
+            </p>
+            <div style="border: 1px solid var(--rule); padding: 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.65; color: var(--ink-2); background: #fafaf7;">
+              {dsgvoText}
+            </div>
+
+            <label class="app-label">
+              <span class="app-label-text">Vor- und Nachname zur Bestätigung *</span>
+              <input class="app-input" type="text" name="signed_name" required value={data3?.signed_name ?? fullName} />
+            </label>
+
+            <label style="display: flex; gap: 12px; align-items: flex-start; margin: 16px 0 24px; cursor: pointer;">
+              <input type="checkbox" name="confirm" required value="1" style="margin-top: 4px;" />
+              <span style="font-size: 14px; line-height: 1.5; color: var(--ink-2);">
+                Ich habe die Datenschutzhinweise gelesen und willige in die beschriebene Verarbeitung meiner personenbezogenen Daten ein.
+              </span>
+            </label>
+
+            <button type="submit" class="cta-button">
+              Bestätigen & weiter →
+            </button>
+          </form>
+        )}
+
+        {currentStep === 4 && (
+          <form method="post" action="/api/m/step" class="app-card">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="step_no" value="4" />
+            <input type="hidden" name="document_text" value={honorarText} />
+            <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Honorarvereinbarung</h2>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+              Bitte lesen Sie die Honorarvereinbarung sorgfältig.
+            </p>
+            <div style="border: 1px solid var(--rule); padding: 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.65; color: var(--ink-2); background: #fafaf7;">
+              {honorarText}
+            </div>
+
+            <label class="app-label">
+              <span class="app-label-text">Vor- und Nachname zur Bestätigung *</span>
+              <input class="app-input" type="text" name="signed_name" required value={data4?.signed_name ?? fullName} />
+            </label>
+
+            <label style="display: flex; gap: 12px; align-items: flex-start; margin: 16px 0 24px; cursor: pointer;">
+              <input type="checkbox" name="confirm" required value="1" style="margin-top: 4px;" />
+              <span style="font-size: 14px; line-height: 1.5; color: var(--ink-2);">
+                Ich akzeptiere die vorstehende Honorarvereinbarung.
+              </span>
+            </label>
+
+            <button type="submit" class="cta-button">
+              Bestätigen & weiter →
+            </button>
+          </form>
+        )}
+
+        {currentStep === 5 && (
+          <div>
+            <div class="app-card" style="margin-bottom: 24px;">
+              <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Dokumente hochladen</h2>
+              <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+                Optional. Maximal {MAX_FILES_PER_AKTE} Dateien · {Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB pro Datei · {ALLOWED_UPLOAD_EXTENSIONS.join(', ')}.
+              </p>
+
+              {files.length > 0 && (
+                <ul style="list-style: none; padding: 0; margin: 0 0 24px 0;">
+                  {files.map((f) => (
+                    <li style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 14px;">
+                      <span>{f.file_name}</span>
+                      <span style="font-family: var(--mono); color: var(--muted); font-size: 12px;">
+                        {Math.round(f.size_bytes / 1024)} KB
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {files.length < MAX_FILES_PER_AKTE && (
+                <form method="post" action="/api/m/upload" enctype="multipart/form-data" style="display: flex; gap: 12px; align-items: flex-end;">
+                  <input type="hidden" name="token" value={token} />
+                  <label class="app-label" style="flex: 1; margin-bottom: 0;">
+                    <span class="app-label-text">Datei wählen</span>
+                    <input class="app-input" type="file" name="file" required accept={ALLOWED_UPLOAD_EXTENSIONS.join(',')} />
+                  </label>
+                  <button type="submit" class="cta-button cta-button--small">Hochladen</button>
+                </form>
+              )}
+            </div>
+
+            <div class="app-card">
+              <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Abschließen</h2>
+              <p style="color: var(--ink-2); font-size: 15px; margin-bottom: 16px;">
+                Wenn Sie fertig sind, übermitteln Sie Ihre Angaben an die Kanzlei. Danach ist keine Bearbeitung mehr möglich.
+              </p>
+              {!allSignedExceptUpload && (
+                <p style="color: #b23a3a; font-size: 14px; margin-bottom: 16px;">
+                  Bitte schließen Sie zuerst Schritte 01-04 ab.
+                </p>
+              )}
+              <form method="post" action="/api/m/submit">
+                <input type="hidden" name="token" value={token} />
+                <button type="submit" class="cta-button" disabled={!allSignedExceptUpload}>
+                  Verbindlich übermitteln →
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cta-button:hover:not(:disabled) {
+    background: #1a2436;
+  }
+  .cta-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .cta-button--small {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+</style>

@@ -3,7 +3,7 @@ import { lookupSession, SESSION_COOKIE } from './lib/auth';
 import { findKanzleiById } from './lib/db';
 
 const PUBLIC_APP_PATHS = new Set(['/app/login', '/app/login/']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health'];
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/'];
 
 function needsAuth(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return !PUBLIC_APP_PATHS.has(pathname);

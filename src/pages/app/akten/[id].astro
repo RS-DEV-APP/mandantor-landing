@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../layouts/AppLayout.astro';
 import { findAkteById } from '../../../lib/akten';
+import { STEP_LABELS } from '../../../lib/mandant';
 
 export const prerender = false;
 
@@ -14,10 +15,19 @@ if (!akte) return new Response('Nicht gefunden', { status: 404 });
 
 const origin = new URL(Astro.request.url).origin;
 const mandantUrl = `${origin}/m/${akte.mandant_token}`;
+
+type StepRow = {
+  step_no: number;
+  data_json: string | null;
+  signed_at: number | null;
+  ip_hash: string | null;
+  ua_hash: string | null;
+};
+
 const stepsResult = await env.DB
-  .prepare('SELECT step_no, signed_at FROM akte_step WHERE akte_id = ?1 ORDER BY step_no')
+  .prepare('SELECT step_no, data_json, signed_at, ip_hash, ua_hash FROM akte_step WHERE akte_id = ?1 ORDER BY step_no')
   .bind(akte.id)
-  .all<{ step_no: number; signed_at: number | null }>();
+  .all<StepRow>();
 const filesResult = await env.DB
   .prepare('SELECT id, file_name, size_bytes FROM akte_file WHERE akte_id = ?1 ORDER BY uploaded_at')
   .bind(akte.id)
@@ -25,10 +35,34 @@ const filesResult = await env.DB
 const steps = stepsResult.results ?? [];
 const files = filesResult.results ?? [];
 
-const stepLabels = ['Stammdaten', 'Vollmacht', 'DSGVO', 'Honorar', 'Upload'];
+const stepByNo = new Map<number, StepRow>();
+for (const s of steps) stepByNo.set(s.step_no, s);
+
+function parseStepData(s: StepRow | undefined): Record<string, unknown> {
+  if (!s?.data_json) return {};
+  try { return JSON.parse(s.data_json) as Record<string, unknown>; } catch { return {}; }
+}
+
+function fmtDate(ts: number | null): string {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString('de-DE');
+}
+
+function fmtBirthdate(iso: string | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
   day: '2-digit', month: '2-digit', year: 'numeric',
 });
+
+const data1 = parseStepData(stepByNo.get(1)) as {
+  vorname?: string; nachname?: string; anschrift?: string; plz?: string; ort?: string;
+  geburtsdatum?: string; telefon?: string; email?: string;
+};
 ---
 <AppLayout title={`Akte ${akte.case_label ?? akte.id.slice(0, 8)} — Mandantor`}>
   <main class="app-shell">
@@ -46,6 +80,7 @@ const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
       </h1>
       <p style="font-size: 14px; color: var(--muted);">
         Status: {akte.status} · angelegt {created}
+        {akte.submitted_at && ` · übermittelt ${fmtDate(akte.submitted_at)}`}
       </p>
     </header>
 
@@ -62,25 +97,59 @@ const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
       />
     </div>
 
+    {stepByNo.get(1)?.signed_at && (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 4px;">Stammdaten</h2>
+        <p style="font-size: 12px; font-family: var(--mono); color: var(--muted); margin-bottom: 20px;">
+          eingereicht {fmtDate(stepByNo.get(1)!.signed_at)}
+        </p>
+        <dl class="kv-grid">
+          <dt>Vor- und Nachname</dt>
+          <dd>{[data1.vorname, data1.nachname].filter(Boolean).join(' ') || '—'}</dd>
+          <dt>Anschrift</dt>
+          <dd>{data1.anschrift ?? '—'}<br />{[data1.plz, data1.ort].filter(Boolean).join(' ')}</dd>
+          <dt>Geburtsdatum</dt>
+          <dd>{fmtBirthdate(data1.geburtsdatum)}</dd>
+          <dt>Telefon</dt>
+          <dd>{data1.telefon || '—'}</dd>
+          <dt>E-Mail</dt>
+          <dd>{data1.email ?? '—'}</dd>
+        </dl>
+      </div>
+    )}
+
     <div class="app-card" style="margin-bottom: 24px;">
-      <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Fortschritt</h2>
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Bestätigungen & Audit</h2>
       <ol style="list-style: none; padding: 0; margin: 0;">
-        {stepLabels.map((label, idx) => {
+        {STEP_LABELS.map((label, idx) => {
           const stepNo = idx + 1;
-          const step = steps.find((s) => s.step_no === stepNo);
+          const step = stepByNo.get(stepNo);
           const done = !!step?.signed_at;
-          const signed = step?.signed_at
-            ? new Date(step.signed_at * 1000).toLocaleString('de-DE')
-            : null;
+          const data = parseStepData(step) as { signed_name?: string; file_count?: number };
           return (
-            <li style="display: grid; grid-template-columns: 60px 1fr auto; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: baseline;">
-              <span style="font-family: var(--mono); font-size: 12px; color: var(--muted);">0{stepNo}</span>
-              <span style={`font-size: 16px; color: ${done ? 'var(--ink)' : 'var(--muted)'};`}>
-                {label}
-              </span>
-              <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">
-                {signed ?? (done ? 'erledigt' : 'offen')}
-              </span>
+            <li style="padding: 16px 0; border-bottom: 1px solid var(--rule);">
+              <div style="display: grid; grid-template-columns: 60px 1fr auto; gap: 16px; align-items: baseline;">
+                <span style="font-family: var(--mono); font-size: 12px; color: var(--muted);">0{stepNo}</span>
+                <span style={`font-size: 16px; color: ${done ? 'var(--ink)' : 'var(--muted)'};`}>
+                  {label}
+                </span>
+                <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">
+                  {done ? fmtDate(step!.signed_at) : 'offen'}
+                </span>
+              </div>
+              {done && stepNo >= 2 && stepNo <= 4 && (
+                <div style="margin-top: 8px; margin-left: 76px; font-size: 13px; color: var(--ink-2);">
+                  bestätigt von: <strong>{data.signed_name ?? '—'}</strong>
+                  <span style="font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 12px;">
+                    IP {(step!.ip_hash ?? '').slice(0, 8)} · UA {(step!.ua_hash ?? '').slice(0, 8)}
+                  </span>
+                </div>
+              )}
+              {done && stepNo === 5 && (
+                <div style="margin-top: 8px; margin-left: 76px; font-size: 13px; color: var(--ink-2);">
+                  {data.file_count ?? 0} Datei(en) übermittelt
+                </div>
+              )}
             </li>
           );
         })}
@@ -106,3 +175,31 @@ const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
     </div>
   </main>
 </AppLayout>
+
+<style>
+  .kv-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px 24px;
+    margin: 0;
+  }
+  .kv-grid dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: start;
+    padding-top: 2px;
+  }
+  .kv-grid dd {
+    font-size: 15px;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.5;
+  }
+  @media (max-width: 600px) {
+    .kv-grid { grid-template-columns: 1fr; gap: 4px 0; }
+    .kv-grid dt { padding-top: 12px; }
+  }
+</style>

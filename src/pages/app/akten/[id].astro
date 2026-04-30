@@ -1,0 +1,108 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import { findAkteById } from '../../../lib/akten';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime.env;
+if (!session) return Astro.redirect('/app/login', 302);
+
+const id = Astro.params.id ?? '';
+const akte = await findAkteById(env.DB, session.kanzlei_id, id);
+if (!akte) return new Response('Nicht gefunden', { status: 404 });
+
+const origin = new URL(Astro.request.url).origin;
+const mandantUrl = `${origin}/m/${akte.mandant_token}`;
+const stepsResult = await env.DB
+  .prepare('SELECT step_no, signed_at FROM akte_step WHERE akte_id = ?1 ORDER BY step_no')
+  .bind(akte.id)
+  .all<{ step_no: number; signed_at: number | null }>();
+const filesResult = await env.DB
+  .prepare('SELECT id, file_name, size_bytes FROM akte_file WHERE akte_id = ?1 ORDER BY uploaded_at')
+  .bind(akte.id)
+  .all<{ id: string; file_name: string; size_bytes: number }>();
+const steps = stepsResult.results ?? [];
+const files = filesResult.results ?? [];
+
+const stepLabels = ['Stammdaten', 'Vollmacht', 'DSGVO', 'Honorar', 'Upload'];
+const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+});
+---
+<AppLayout title={`Akte ${akte.case_label ?? akte.id.slice(0, 8)} — Mandantor`}>
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/dashboard" class="tlink">← Dashboard</a>
+    </p>
+
+    <header style="margin-bottom: 32px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Akte</span>
+      </span>
+      <h1 class="serif" style="font-size: 36px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        {akte.case_label ?? 'Ohne Bezeichnung'}
+      </h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Status: {akte.status} · angelegt {created}
+      </p>
+    </header>
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 12px;">Mandanten-Link</h2>
+      <p style="color: var(--ink-2); font-size: 15px; margin-bottom: 16px;">
+        Schicken Sie diesen Link an Ihre/n Mandant:in. Eine Sitzung, einmalig zugreifbar.
+      </p>
+      <input
+        readonly
+        value={mandantUrl}
+        class="app-input"
+        style="font-family: var(--mono); font-size: 13px;"
+      />
+    </div>
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Fortschritt</h2>
+      <ol style="list-style: none; padding: 0; margin: 0;">
+        {stepLabels.map((label, idx) => {
+          const stepNo = idx + 1;
+          const step = steps.find((s) => s.step_no === stepNo);
+          const done = !!step?.signed_at;
+          const signed = step?.signed_at
+            ? new Date(step.signed_at * 1000).toLocaleString('de-DE')
+            : null;
+          return (
+            <li style="display: grid; grid-template-columns: 60px 1fr auto; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: baseline;">
+              <span style="font-family: var(--mono); font-size: 12px; color: var(--muted);">0{stepNo}</span>
+              <span style={`font-size: 16px; color: ${done ? 'var(--ink)' : 'var(--muted)'};`}>
+                {label}
+              </span>
+              <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">
+                {signed ?? (done ? 'erledigt' : 'offen')}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+
+    <div class="app-card">
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Dokumente</h2>
+      {files.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px;">Noch keine Dokumente hochgeladen.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {files.map((f) => (
+            <li style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 14px;">
+              <span>{f.file_name}</span>
+              <span style="font-family: var(--mono); color: var(--muted); font-size: 12px;">
+                {Math.round(f.size_bytes / 1024)} KB
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </main>
+</AppLayout>

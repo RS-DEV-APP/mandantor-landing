@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { findKanzleiById } from '../../lib/db';
+import { listAkten } from '../../lib/akten';
 
 export const prerender = false;
 
@@ -16,10 +17,11 @@ if (!kanzlei) {
   return Astro.redirect('/app/login', 302);
 }
 
-const aktenCount = await env.DB
-  .prepare('SELECT COUNT(*) AS n FROM akte WHERE kanzlei_id = ?1')
-  .bind(kanzlei.id)
-  .first<{ n: number }>();
+const akten = await listAkten(env.DB, kanzlei.id);
+const fmtDate = (ts: number) =>
+  new Date(ts * 1000).toLocaleDateString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  });
 ---
 <AppLayout title="Dashboard — Mandantor">
   <main class="app-shell">
@@ -39,14 +41,40 @@ const aktenCount = await env.DB
       </form>
     </header>
 
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 12px;">Neue Akte anlegen</h2>
+      <p style="color: var(--ink-2); font-size: 14px; margin-bottom: 20px;">
+        Sie erhalten einen einmaligen Mandanten-Link, den Sie weitergeben können.
+      </p>
+      <form method="post" action="/api/akten/create" style="display: flex; gap: 12px; align-items: flex-end;">
+        <label class="app-label" style="margin: 0; flex: 1;">
+          <span class="app-label-text">Aktenbezeichnung (optional)</span>
+          <input type="text" name="case_label" placeholder="z. B. Mietsache Müller" class="app-input" />
+        </label>
+        <button type="submit" class="btn">
+          <span>Akte anlegen</span>
+          <span class="arrow">→</span>
+        </button>
+      </form>
+    </div>
+
     <div class="app-card">
       <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Akten</h2>
-      <p style="color: var(--ink-2); font-size: 15px;">
-        {aktenCount?.n ?? 0} Akten angelegt.
-      </p>
-      <p style="margin-top: 24px; color: var(--muted); font-size: 14px;">
-        (Akten-Erstellung kommt im nächsten Schritt)
-      </p>
+      {akten.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px;">Noch keine Akten angelegt.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {akten.map((a) => (
+            <li style="border-bottom: 1px solid var(--rule);">
+              <a href={`/app/akten/${a.id}`} style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; padding: 16px 0; align-items: baseline; color: var(--ink); border: 0;" class="tlink">
+                <span style="font-size: 16px;">{a.case_label ?? 'Ohne Bezeichnung'}</span>
+                <span style="font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase;">{a.status}</span>
+                <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">{fmtDate(a.created_at)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   </main>
 </AppLayout>

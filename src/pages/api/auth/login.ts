@@ -25,7 +25,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     const origin = new URL(request.url).origin;
     const magicUrl = `${origin}/auth/verify?token=${encodeURIComponent(token)}`;
 
-    await sendMagicLinkEmail(env, email, magicUrl);
+    const result = await sendMagicLinkEmail(env, email, magicUrl);
+
+    // Setup-Phase: kein Mail-Backend → direkt zum Magic-Link weiterleiten,
+    // damit Login ohne Mail testbar ist. Sobald RESEND_API_KEY oder MAILER
+    // gesetzt sind, läuft der normale „Mail versendet"-Flow.
+    if (result.delivered === 'logged') {
+      return redirect(magicUrl, 303);
+    }
+
     return redirect('/app/login?sent=1', 303);
   } catch (err) {
     console.error('login error', err);

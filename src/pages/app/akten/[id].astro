@@ -163,11 +163,20 @@ const data1 = parseStepData(stepByNo.get(1)) as {
       ) : (
         <ul style="list-style: none; padding: 0; margin: 0;">
           {files.map((f) => (
-            <li style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 14px;">
-              <span>{f.file_name}</span>
-              <span style="font-family: var(--mono); color: var(--muted); font-size: 12px;">
-                {Math.round(f.size_bytes / 1024)} KB
-              </span>
+            <li>
+              <a
+                href={`/api/akten/files/${f.id}`}
+                download={f.file_name}
+                class="file-row"
+              >
+                <span class="file-name">
+                  <span style="color: var(--gold); margin-right: 10px; font-family: var(--mono); font-size: 13px;">↓</span>
+                  {f.file_name}
+                </span>
+                <span style="font-family: var(--mono); color: var(--muted); font-size: 12px;">
+                  {Math.round(f.size_bytes / 1024)} KB
+                </span>
+              </a>
             </li>
           ))}
         </ul>
@@ -202,4 +211,18 @@ const data1 = parseStepData(stepByNo.get(1)) as {
     .kv-grid { grid-template-columns: 1fr; gap: 4px 0; }
     .kv-grid dt { padding-top: 12px; }
   }
+  .file-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14px;
+    color: var(--ink);
+    text-decoration: none;
+    transition: background 0.1s;
+  }
+  .file-row:hover { background: #fafaf7; }
+  .file-row:hover .file-name { text-decoration: underline; }
+  .file-name { display: inline-flex; align-items: center; }
 </style>

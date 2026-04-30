@@ -1,0 +1,75 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+</head>
+<body class="app-body">
+  <slot />
+</body>
+</html>
+
+<style is:global>
+  .app-body {
+    background: var(--paper);
+    min-height: 100vh;
+  }
+  .app-shell {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 64px var(--gutter);
+  }
+  .app-card {
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    padding: 40px;
+  }
+  .app-input {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 16px;
+    padding: 14px 16px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .app-input:focus { border-color: var(--ink); }
+  .app-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .app-label-text {
+    font-family: var(--mono);
+    font-size: var(--fs-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .app-error {
+    color: #b23a3a;
+    font-size: 14px;
+    margin-top: 12px;
+  }
+  .app-success {
+    color: var(--ink);
+    font-size: 16px;
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+</style>

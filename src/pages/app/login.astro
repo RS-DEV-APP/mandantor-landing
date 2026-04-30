@@ -1,0 +1,57 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+
+export const prerender = false;
+
+const url = new URL(Astro.request.url);
+const sent = url.searchParams.get('sent') === '1';
+const error = url.searchParams.get('error');
+---
+<AppLayout title="Anmelden — Mandantor">
+  <main class="app-shell">
+    <div class="app-card">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Anmeldung</span>
+      </span>
+
+      <h1 class="serif" style="font-size: 36px; margin: 16px 0 12px; letter-spacing: -0.015em;">
+        Bei Mandantor anmelden.
+      </h1>
+      <p style="color: var(--ink-2); font-size: 16px; line-height: 1.6; max-width: 50ch;">
+        Wir schicken einen einmaligen Link an Ihre Kanzlei-E-Mail-Adresse.
+        Kein Passwort.
+      </p>
+
+      {sent ? (
+        <p class="app-success">
+          <strong>Link versendet.</strong> Schauen Sie in Ihr E-Mail-Postfach
+          (auch im Spam-Ordner). Der Link ist 15 Minuten gültig.
+        </p>
+      ) : (
+        <form method="post" action="/api/auth/login" style="margin-top: 32px;">
+          <label class="app-label">
+            <span class="app-label-text">E-Mail-Adresse</span>
+            <input
+              type="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="anwalt@kanzlei-beispiel.de"
+              class="app-input"
+            />
+          </label>
+          <button type="submit" class="btn">
+            <span>Anmeldelink schicken</span>
+            <span class="arrow">→</span>
+          </button>
+          {error && <p class="app-error">{error}</p>}
+        </form>
+      )}
+
+      <p style="margin-top: 32px; font-size: 13px; color: var(--muted);">
+        <a href="/" class="tlink">← zurück zur Startseite</a>
+      </p>
+    </div>
+  </main>
+</AppLayout>

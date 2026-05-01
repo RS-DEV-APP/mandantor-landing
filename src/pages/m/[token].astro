@@ -41,7 +41,8 @@ const data2 = stepDataMap.get(2) as { signed_name?: string } | undefined;
 const data3 = stepDataMap.get(3) as { signed_name?: string } | undefined;
 const data4 = stepDataMap.get(4) as { signed_name?: string } | undefined;
 
-const vollmachtText = (kanzlei.vollmacht_template?.trim()) || `Hiermit bevollmächtige ich die Kanzlei ${kanzlei.display_name}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+const vollmachtRaw = kanzlei.vollmacht_template?.trim() || `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+const vollmachtText = vollmachtRaw.replace(/\{KANZLEI\}/g, kanzlei.display_name);
 
 const honorarHourly = (kanzlei.honorar_hourly?.trim()) || '250,00 EUR netto je angefangener Stunde';
 const honorarAdvance = (kanzlei.honorar_advance?.trim()) || '500,00 EUR';

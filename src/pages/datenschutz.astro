@@ -93,15 +93,53 @@ import Footer from '../components/Footer.astro';
       Promenade 18, 91522 Ansbach.
     </p>
 
-    <h2 id="avv">8. AVV-Mustervertrag</h2>
+    <h2 id="app">8. Datenverarbeitung in der Mandantor-App</h2>
+    <p>
+      Im Mandanten-Onboarding-Portal („Mandantor-App", erreichbar unter <code>mandantor.de/app</code>
+      und <code>mandantor.de/m/&lt;link&gt;</code>) verarbeiten wir folgende Kategorien
+      personenbezogener Daten als Auftragsverarbeiter im Auftrag der jeweiligen Kanzlei:
+    </p>
+    <ul>
+      <li>Anwalt-Login: E-Mail-Adresse, Sessions-Tokens (gehasht), Login-Zeitstempel</li>
+      <li>
+        Mandant-Onboarding: Stammdaten (Name, Anschrift, Geburtsdatum, Telefon, E-Mail),
+        Bestätigungen zu Vollmacht, Datenschutz und Honorar (mit Zeitstempel und IP-/User-Agent-Hash
+        zur Beweissicherung), hochgeladene Dokumente
+      </li>
+    </ul>
+    <p>
+      Rechtsgrundlage für die Mandanten-Datenverarbeitung ist die Anbahnung und Erfüllung des
+      Mandatsverhältnisses (Art. 6 Abs. 1 lit. b DSGVO) sowie die Erfüllung gesetzlicher
+      Aufbewahrungspflichten der Kanzlei (Art. 6 Abs. 1 lit. c DSGVO).
+    </p>
+    <p>
+      <strong>Sub-Auftragsverarbeiter</strong> in der Mandantor-App:
+    </p>
+    <ul>
+      <li>
+        <strong>Cloudflare, Inc.</strong> — Hosting, Datenbank (D1), Dateispeicher (R2),
+        E-Mail-Weiterleitung. Datenverarbeitung in EU-Rechenzentren. AVV liegt vor.
+      </li>
+      <li>
+        <strong>Resend (Drei Hundert Sechzig, Inc.)</strong> — transaktionaler Mail-Versand
+        (Anmelde-Links, Benachrichtigungen). EU-Region (Frankfurt/Irland). AVV liegt vor.
+      </li>
+    </ul>
+    <p>
+      <strong>Speicherdauer:</strong> Daten zu einer Akte werden bis zum Ablauf der gesetzlichen
+      Aufbewahrungsfristen der jeweiligen Kanzlei (in der Regel 6 Jahre nach Mandatsende, in
+      Einzelfällen länger) gespeichert. Anschließende Löschung erfolgt auf Veranlassung der Kanzlei.
+    </p>
+
+    <h2 id="avv">9. AVV-Mustervertrag</h2>
     <p>
       Im späteren Produktiv-Betrieb stellen wir einen Auftragsverarbeitungsvertrag (AVV) gemäß
       Art. 28 DSGVO bereit, den jede Partner-Kanzlei vor Inbetriebnahme unterzeichnen kann.
       Der Mustervertrag liegt aktuell intern vor und wird Pilot-Kanzleien auf Anfrage zugesandt.
     </p>
 
-    <h2>9. Stand</h2>
-    <p>Diese Datenschutzerklärung hat den Stand April 2026.</p>
+    <h2>10. Stand</h2>
+    <p>Diese Datenschutzerklärung hat den Stand Mai 2026.</p>
   </main>
 
   <Footer />

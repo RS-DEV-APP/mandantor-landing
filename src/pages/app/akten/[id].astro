@@ -73,18 +73,49 @@ const data1 = parseStepData(stepByNo.get(1)) as {
       <a href="/app/dashboard" class="tlink">← Dashboard</a>
     </p>
 
-    <header style="margin-bottom: 32px;">
-      <span class="marker">
-        <span class="pilcrow" style="color: var(--gold);">§</span>
-        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Akte</span>
-      </span>
-      <h1 class="serif" style="font-size: 36px; margin: 12px 0 4px; letter-spacing: -0.015em;">
-        {akte.case_label ?? 'Ohne Bezeichnung'}
-      </h1>
-      <p style="font-size: 14px; color: var(--muted);">
-        Status: {akte.status} · angelegt {created}
-        {akte.submitted_at && ` · übermittelt ${fmtDate(akte.submitted_at)}`}
-      </p>
+    <header style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px;">
+      <div>
+        <span class="marker">
+          <span class="pilcrow" style="color: var(--gold);">§</span>
+          <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Akte</span>
+        </span>
+        <h1 class="serif" id="akte-title" style="font-size: 36px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+          {akte.case_label ?? 'Ohne Bezeichnung'}
+        </h1>
+        <p style="font-size: 14px; color: var(--muted);">
+          Status: {akte.status} · angelegt {created}
+          {akte.submitted_at && ` · übermittelt ${fmtDate(akte.submitted_at)}`}
+        </p>
+      </div>
+      <details class="akte-menu">
+        <summary class="akte-menu-trigger" aria-label="Aktionen">⋯</summary>
+        <div class="akte-menu-panel">
+          <a class="akte-menu-item" href={`/app/akten/${akte.id}/print`}>Druckansicht / PDF</a>
+          <button
+            type="button"
+            class="akte-menu-item"
+            onclick="(function(){const t=document.getElementById('akte-title').textContent.trim();const v=t==='Ohne Bezeichnung'?'':t;const n=prompt('Neue Bezeichnung der Akte:',v);if(n===null)return;const f=document.getElementById('rename-form');f.querySelector('input[name="case_label"]').value=n;f.submit();})()"
+          >
+            Akte umbenennen
+          </button>
+          {akte.status !== 'archived' && (
+            <button
+              type="button"
+              class="akte-menu-item akte-menu-item--danger"
+              onclick="if(confirm('Akte archivieren? Sie verschwindet aus dem Dashboard, bleibt aber gespeichert.'))document.getElementById('archive-form').submit();"
+            >
+              Akte archivieren
+            </button>
+          )}
+        </div>
+      </details>
+      <form id="rename-form" method="post" action="/api/akten/rename" style="display: none;">
+        <input type="hidden" name="akte_id" value={akte.id} />
+        <input type="hidden" name="case_label" value="" />
+      </form>
+      <form id="archive-form" method="post" action="/api/akten/archive" style="display: none;">
+        <input type="hidden" name="akte_id" value={akte.id} />
+      </form>
     </header>
 
     <div class="app-card" style="margin-bottom: 24px;">
@@ -293,4 +324,54 @@ const data1 = parseStepData(stepByNo.get(1)) as {
     color: var(--ink);
   }
   .cta-button--secondary:hover { background: #f5f3ee; }
+
+  .akte-menu { position: relative; }
+  .akte-menu-trigger {
+    list-style: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+    color: var(--ink);
+    user-select: none;
+  }
+  .akte-menu-trigger::-webkit-details-marker { display: none; }
+  .akte-menu-trigger:hover { background: #f5f3ee; }
+  .akte-menu[open] .akte-menu-trigger { background: var(--ink); color: var(--paper); }
+  .akte-menu-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    border-radius: 2px;
+    min-width: 200px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+  }
+  .akte-menu-item {
+    text-align: left;
+    padding: 12px 16px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
+    display: block;
+  }
+  .akte-menu-item:last-child { border-bottom: 0; }
+  .akte-menu-item:hover { background: #f5f3ee; }
+  .akte-menu-item--danger { color: #b23a3a; }
+  .akte-menu-item--danger:hover { background: #fdf0f0; }
 </style>

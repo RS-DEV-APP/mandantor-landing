@@ -185,3 +185,41 @@ export async function sendMandantInviteEmail(
     'mandant-invite',
   );
 }
+
+function mandantConfirmationBody(
+  kanzleiName: string,
+  caseLabel: string | null,
+): string {
+  const caseLine = caseLabel ? `\nBetreff: ${caseLabel}` : '';
+  return [
+    'Sehr geehrte/r Mandant:in,',
+    '',
+    `vielen Dank — Ihre Angaben sind bei der Kanzlei ${kanzleiName} eingegangen.${caseLine}`,
+    '',
+    'Die Kanzlei meldet sich bei Ihnen, sobald die Bearbeitung beginnt oder',
+    'Rückfragen bestehen. Bis dahin sind keine weiteren Schritte erforderlich.',
+    '',
+    'Eine Kopie Ihrer Bestätigungen (Vollmacht, Datenschutz, Honorarvereinbarung)',
+    `wurde der Kanzlei zur Aktenführung zugestellt. Bei Fragen wenden Sie sich`,
+    `direkt an die Kanzlei ${kanzleiName}.`,
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+}
+
+export async function sendMandantConfirmationEmail(
+  env: Env,
+  toMandant: string,
+  kanzleiName: string,
+  caseLabel: string | null,
+): Promise<{ delivered: Backend }> {
+  return sendEmail(
+    env,
+    toMandant,
+    `${kanzleiName} — Bestätigung Ihrer Angaben`,
+    mandantConfirmationBody(kanzleiName, caseLabel),
+    'mandant-confirmation',
+  );
+}

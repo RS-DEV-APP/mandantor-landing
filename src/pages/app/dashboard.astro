@@ -17,11 +17,32 @@ if (!kanzlei) {
   return Astro.redirect('/app/login', 302);
 }
 
-const akten = await listAkten(env.DB, kanzlei.id);
+const url = new URL(Astro.request.url);
+const showArchived = url.searchParams.get('archived_view') === '1';
+const archivedNotice = url.searchParams.get('archived');
+const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived });
+const visibleAkten = showArchived
+  ? akten.filter((a) => a.status === 'archived')
+  : akten;
+
 const fmtDate = (ts: number) =>
   new Date(ts * 1000).toLocaleDateString('de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
+
+const statusLabel = (status: string) => {
+  switch (status) {
+    case 'draft': return 'Wartet auf Mandant';
+    case 'in_progress': return 'In Bearbeitung';
+    case 'submitted': return 'Eingereicht';
+    case 'archived': return 'Archiviert';
+    default: return status;
+  }
+};
+
+const needsKanzleiSetup =
+  /^[a-zA-Z]\.[a-zA-Z]/.test(kanzlei.display_name) &&
+  !kanzlei.display_name.includes(' ');
 ---
 <AppLayout title="Dashboard — Mandantor">
   <main class="app-shell">
@@ -36,15 +57,18 @@ const fmtDate = (ts: number) =>
         </h1>
         <p style="font-size: 14px; color: var(--muted);">{kanzlei.email}</p>
       </div>
-      <form method="post" action="/api/auth/logout">
-        <button type="submit" class="btn btn-ghost">Abmelden</button>
-      </form>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="/app/settings" class="tlink" style="font-size: 14px;">Einstellungen</a>
+        <form method="post" action="/api/auth/logout" style="margin: 0;">
+          <button type="submit" class="btn btn-ghost">Abmelden</button>
+        </form>
+      </div>
     </header>
 
     <div class="app-card" style="margin-bottom: 24px;">
       <h2 class="serif" style="font-size: 22px; margin-bottom: 12px;">Neue Akte anlegen</h2>
       <p style="color: var(--ink-2); font-size: 14px; margin-bottom: 20px;">
-        Sie erhalten einen einmaligen Mandanten-Link, den Sie weitergeben können.
+        Sie erhalten einen Mandanten-Link, den Sie per E-Mail verschicken oder kopieren können.
       </p>
       <form method="post" action="/api/akten/create" style="display: flex; gap: 12px; align-items: flex-end;">
         <label class="app-label" style="margin: 0; flex: 1;">
@@ -58,23 +82,107 @@ const fmtDate = (ts: number) =>
       </form>
     </div>
 
+    {needsKanzleiSetup && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Kanzlei-Daten vervollständigen</h2>
+        <p style="color: var(--ink-2); font-size: 14px; margin: 0 0 12px;">
+          Ihre Kanzlei wird Mandant:innen aktuell als <strong>{kanzlei.display_name}</strong> angezeigt.
+          Tragen Sie unter Einstellungen Ihren richtigen Kanzlei-Namen sowie Vollmacht- und Honorar-Vorlagen ein.
+        </p>
+        <a href="/app/settings" class="tlink" style="font-size: 14px;">Zu den Einstellungen →</a>
+      </div>
+    )}
+
+    {archivedNotice && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Akte <strong>{archivedNotice}</strong> archiviert.
+      </p>
+    )}
+
     <div class="app-card">
-      <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Akten</h2>
-      {akten.length === 0 ? (
-        <p style="color: var(--muted); font-size: 14px;">Noch keine Akten angelegt.</p>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; gap: 16px; flex-wrap: wrap;">
+        <h2 class="serif" style="font-size: 22px; margin: 0;">{showArchived ? 'Archiv' : 'Akten'}</h2>
+        <div style="display: flex; gap: 8px; font-size: 13px;">
+          <a
+            href="/app/dashboard"
+            class={showArchived ? 'tab' : 'tab tab--active'}
+          >Aktiv</a>
+          <a
+            href="/app/dashboard?archived_view=1"
+            class={showArchived ? 'tab tab--active' : 'tab'}
+          >Archiv</a>
+        </div>
+      </div>
+      {visibleAkten.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px; padding: 16px 0;">
+          {showArchived ? 'Keine archivierten Akten.' : 'Noch keine Akten angelegt.'}
+        </p>
       ) : (
         <ul style="list-style: none; padding: 0; margin: 0;">
-          {akten.map((a) => (
-            <li style="border-bottom: 1px solid var(--rule);">
-              <a href={`/app/akten/${a.id}`} style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; padding: 16px 0; align-items: baseline; color: var(--ink); border: 0;" class="tlink">
-                <span style="font-size: 16px;">{a.case_label ?? 'Ohne Bezeichnung'}</span>
-                <span style="font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase;">{a.status}</span>
-                <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">{fmtDate(a.created_at)}</span>
-              </a>
-            </li>
-          ))}
+          {visibleAkten.map((a) => {
+            const ts = a.submitted_at ?? a.created_at;
+            const tsLabel = a.submitted_at ? `eingereicht ${fmtDate(ts)}` : `angelegt ${fmtDate(ts)}`;
+            return (
+              <li style="border-bottom: 1px solid var(--rule);">
+                <a href={`/app/akten/${a.id}`} class="akte-row">
+                  <span class="akte-row-title">{a.case_label ?? 'Ohne Bezeichnung'}</span>
+                  <span class={`status-badge status-${a.status}`}>{statusLabel(a.status)}</span>
+                  <span class="akte-row-date">{tsLabel}</span>
+                </a>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   </main>
 </AppLayout>
+
+<style>
+  .tab {
+    padding: 6px 14px;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 2px;
+  }
+  .tab--active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .akte-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 16px;
+    padding: 16px 0;
+    align-items: baseline;
+    color: var(--ink);
+    text-decoration: none;
+    border: 0;
+  }
+  .akte-row:hover .akte-row-title { text-decoration: underline; }
+  .akte-row-title { font-size: 16px; }
+  .akte-row-date {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .status-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .status-draft { background: #fef7e6; color: #8a6d1a; }
+  .status-in_progress { background: #e8f0fe; color: #1a4d8a; }
+  .status-submitted { background: #e6f4ea; color: #1a6d2c; }
+  .status-archived { background: #f0f0f0; color: #555; }
+</style>

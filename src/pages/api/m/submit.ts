@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { findAkteByMandantToken } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { listSteps, listFiles, markSubmitted, saveStep } from '../../../lib/mandant';
-import { sendSubmissionNotificationEmail } from '../../../lib/mail';
+import { sendSubmissionNotificationEmail, sendMandantConfirmationEmail } from '../../../lib/mail';
 
 export const prerender = false;
 
@@ -12,16 +12,17 @@ function getClientIp(request: Request): string | null {
     ?? null;
 }
 
-function extractMandantName(steps: { step_no: number; data_json: string | null }[]): string {
+function extractStep1<T = { vorname?: string; nachname?: string; email?: string }>(
+  steps: { step_no: number; data_json: string | null }[],
+): T {
   const step1 = steps.find((s) => s.step_no === 1);
-  if (!step1?.data_json) return 'Ein Mandant';
-  try {
-    const data = JSON.parse(step1.data_json) as { vorname?: string; nachname?: string };
-    const parts = [data.vorname, data.nachname].filter(Boolean);
-    return parts.length > 0 ? parts.join(' ') : 'Ein Mandant';
-  } catch {
-    return 'Ein Mandant';
-  }
+  if (!step1?.data_json) return {} as T;
+  try { return JSON.parse(step1.data_json) as T; } catch { return {} as T; }
+}
+
+function buildMandantName(data: { vorname?: string; nachname?: string }): string {
+  const parts = [data.vorname, data.nachname].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : 'Ein Mandant';
 }
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
@@ -54,14 +55,26 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   await saveStep(env.DB, env.SECRET_KEY, akte.id, 5, { file_count: files.length }, ip, ua);
   await markSubmitted(env.DB, akte.id);
 
-  // Anwalt-Notification — Fehler nicht propagieren, Submit war ja erfolgreich.
+  // Mail-Versand: Fehler nicht propagieren, Submit war ja erfolgreich.
+  const mandantData = extractStep1(steps);
+  const mandantName = buildMandantName(mandantData);
+
   try {
     const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);
     if (kanzlei) {
       const origin = new URL(request.url).origin;
       const akteUrl = `${origin}/app/akten/${akte.id}`;
-      const mandantName = extractMandantName(steps);
       await sendSubmissionNotificationEmail(env, kanzlei.email, mandantName, akte.case_label, akteUrl);
+
+      // Mandant-Bestätigung an die in Step 1 angegebene Email
+      const mandantEmail = (mandantData.email ?? '').trim().toLowerCase();
+      if (mandantEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mandantEmail)) {
+        try {
+          await sendMandantConfirmationEmail(env, mandantEmail, kanzlei.display_name, akte.case_label);
+        } catch (err) {
+          console.error('mandant confirmation failed', err);
+        }
+      }
     }
   } catch (err) {
     console.error('submission notification failed', err);

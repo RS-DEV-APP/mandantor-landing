@@ -63,3 +63,32 @@ export async function findOrCreateKanzlei(db: D1Database, email: string): Promis
   if (existing) return existing;
   return createKanzlei(db, email);
 }
+
+export async function updateKanzleiSettings(
+  db: D1Database,
+  id: string,
+  patch: {
+    display_name: string;
+    vollmacht_template: string | null;
+    honorar_hourly: string | null;
+    honorar_advance: string | null;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE kanzlei
+       SET display_name = ?1,
+           vollmacht_template = ?2,
+           honorar_hourly = ?3,
+           honorar_advance = ?4
+       WHERE id = ?5`,
+    )
+    .bind(
+      patch.display_name,
+      patch.vollmacht_template ?? null,
+      patch.honorar_hourly ?? null,
+      patch.honorar_advance ?? null,
+      id,
+    )
+    .run();
+}

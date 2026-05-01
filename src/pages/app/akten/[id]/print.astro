@@ -1,0 +1,182 @@
+---
+import { findAkteById } from '../../../../lib/akten';
+import { findKanzleiById } from '../../../../lib/db';
+import { listSteps, listFiles, STEP_LABELS } from '../../../../lib/mandant';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const akteId = Astro.params.id ?? '';
+const akte = await findAkteById(env.DB, session.kanzlei_id, akteId);
+if (!akte) return new Response('Nicht gefunden', { status: 404 });
+
+const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);
+if (!kanzlei) return new Response('Kanzlei nicht gefunden', { status: 404 });
+
+const steps = await listSteps(env.DB, akte.id);
+const files = await listFiles(env.DB, akte.id);
+
+type StepData = Record<string, unknown>;
+const stepDataMap = new Map<number, StepData>();
+for (const s of steps) {
+  if (s.data_json) {
+    try { stepDataMap.set(s.step_no, JSON.parse(s.data_json)); } catch { /* */ }
+  }
+}
+const stepByNo = new Map(steps.map((s) => [s.step_no, s]));
+
+const data1 = (stepDataMap.get(1) ?? {}) as Record<string, string>;
+
+function fmtDateTime(ts: number | null): string {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString('de-DE');
+}
+function fmtDate(iso: string | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+const created = new Date(akte.created_at * 1000).toLocaleDateString('de-DE', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+});
+const submitted = akte.submitted_at
+  ? new Date(akte.submitted_at * 1000).toLocaleString('de-DE')
+  : null;
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Akte {akte.case_label ?? akte.id.slice(0, 8)} — Druckversion</title>
+  <meta name="robots" content="noindex" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 11pt;
+      line-height: 1.5;
+      color: #111;
+      max-width: 760px;
+      margin: 30px auto;
+      padding: 0 30px;
+    }
+    h1 { font-size: 24pt; margin: 0 0 4px; letter-spacing: -0.01em; }
+    h2 { font-size: 14pt; margin: 28px 0 12px; padding-bottom: 4px; border-bottom: 1px solid #999; }
+    h3 { font-size: 11pt; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; color: #555; }
+    .header-meta { font-size: 10pt; color: #555; margin-bottom: 0; }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px; margin: 0 0 12px; }
+    .kv dt { font-weight: 600; color: #555; }
+    .kv dd { margin: 0; }
+    .doc-text { padding: 12px 16px; border-left: 3px solid #999; background: #fafaf7; margin: 8px 0 14px; font-size: 10.5pt; }
+    .signature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+      font-size: 10pt;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      background: #f8f8f6;
+      margin-bottom: 12px;
+    }
+    .signature dt { color: #555; }
+    .signature dd { margin: 0; font-weight: 600; }
+    .file-list { padding-left: 20px; margin: 0; font-size: 10.5pt; }
+    .file-list li { margin: 4px 0; }
+    .footer-note { margin-top: 40px; font-size: 9pt; color: #888; border-top: 1px solid #ddd; padding-top: 8px; }
+    .print-bar { position: sticky; top: 0; background: #fff; padding: 12px 0; border-bottom: 1px solid #eee; margin-bottom: 24px; display: flex; gap: 12px; align-items: center; }
+    .print-button {
+      background: #0F172A; color: #fff; border: 0; padding: 10px 18px; cursor: pointer;
+      font-family: inherit; font-size: 10pt; border-radius: 2px;
+    }
+    .back-link { color: #555; font-size: 10pt; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    @media print {
+      .print-bar { display: none; }
+      body { margin: 0; max-width: none; padding: 0; }
+      h2 { page-break-after: avoid; }
+      .doc-text, .signature { page-break-inside: avoid; }
+    }
+    @page { margin: 1.8cm 1.8cm 2.2cm; }
+  </style>
+</head>
+<body>
+  <div class="print-bar">
+    <button type="button" class="print-button" onclick="window.print()">↓ Als PDF drucken</button>
+    <a href={`/app/akten/${akte.id}`} class="back-link">← Zurück zur Akte</a>
+  </div>
+
+  <header>
+    <p class="header-meta" style="margin-bottom: 4px;">{kanzlei.display_name}</p>
+    <h1>{akte.case_label ?? 'Akte ohne Bezeichnung'}</h1>
+    <p class="header-meta">
+      Akten-ID: <code>{akte.id}</code> · angelegt {created}
+      {submitted && ` · übermittelt ${submitted}`}
+    </p>
+  </header>
+
+  {stepByNo.get(1)?.signed_at && (
+    <section>
+      <h2>Stammdaten</h2>
+      <p style="font-size: 9pt; color: #666; margin: 0 0 10px;">
+        eingereicht {fmtDateTime(stepByNo.get(1)!.signed_at)}
+      </p>
+      <dl class="kv">
+        <dt>Name</dt><dd>{[data1.vorname, data1.nachname].filter(Boolean).join(' ') || '—'}</dd>
+        <dt>Anschrift</dt><dd>{data1.anschrift ?? '—'}{(data1.plz || data1.ort) && (<><br />{[data1.plz, data1.ort].filter(Boolean).join(' ')}</>)}</dd>
+        <dt>Geburtsdatum</dt><dd>{fmtDate(data1.geburtsdatum)}</dd>
+        <dt>Telefon</dt><dd>{data1.telefon || '—'}</dd>
+        <dt>E-Mail</dt><dd>{data1.email ?? '—'}</dd>
+      </dl>
+    </section>
+  )}
+
+  {[2, 3, 4].map((stepNo) => {
+    const step = stepByNo.get(stepNo);
+    if (!step?.signed_at) return null;
+    const data = (stepDataMap.get(stepNo) ?? {}) as { signed_name?: string; document_text?: string };
+    const label = STEP_LABELS[stepNo - 1];
+    return (
+      <section>
+        <h2>{label}</h2>
+        {data.document_text && (
+          <div class="doc-text">{data.document_text}</div>
+        )}
+        <dl class="signature">
+          <dt>Bestätigt durch:</dt><dd>{data.signed_name ?? '—'}</dd>
+          <dt>Datum/Zeit:</dt><dd>{fmtDateTime(step.signed_at)}</dd>
+          <dt>IP-Hash (gekürzt):</dt><dd style="font-family: monospace; font-weight: 400; color: #666;">{(step.ip_hash ?? '').slice(0, 16)}…</dd>
+          <dt>UA-Hash (gekürzt):</dt><dd style="font-family: monospace; font-weight: 400; color: #666;">{(step.ua_hash ?? '').slice(0, 16)}…</dd>
+        </dl>
+      </section>
+    );
+  })}
+
+  <section>
+    <h2>Dokumente</h2>
+    {files.length === 0 ? (
+      <p style="color: #666;">Keine Dokumente hochgeladen.</p>
+    ) : (
+      <ol class="file-list">
+        {files.map((f) => (
+          <li>
+            {f.file_name} <span style="color: #888;">({Math.round(f.size_bytes / 1024)} KB)</span>
+          </li>
+        ))}
+      </ol>
+    )}
+  </section>
+
+  <p class="footer-note">
+    Diese Druckversion wurde am {new Date().toLocaleString('de-DE')} aus dem Mandantor-Onboarding-Portal
+    erstellt. Die Bestätigungen entsprechen einer einfachen elektronischen Signatur (Art. 25 eIDAS-VO);
+    Audit-Hashes für IP und User-Agent dienen der Beweissicherung.
+  </p>
+</body>
+</html>

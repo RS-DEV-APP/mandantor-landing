@@ -32,13 +32,15 @@ export async function createAkte(
   return row;
 }
 
-export async function listAkten(db: D1Database, kanzleiId: string): Promise<Akte[]> {
-  const result = await db
-    .prepare(
-      'SELECT * FROM akte WHERE kanzlei_id = ?1 ORDER BY created_at DESC LIMIT 100',
-    )
-    .bind(kanzleiId)
-    .all<Akte>();
+export async function listAkten(
+  db: D1Database,
+  kanzleiId: string,
+  options: { includeArchived?: boolean } = {},
+): Promise<Akte[]> {
+  const sql = options.includeArchived
+    ? 'SELECT * FROM akte WHERE kanzlei_id = ?1 ORDER BY created_at DESC LIMIT 200'
+    : `SELECT * FROM akte WHERE kanzlei_id = ?1 AND status != 'archived' ORDER BY created_at DESC LIMIT 100`;
+  const result = await db.prepare(sql).bind(kanzleiId).all<Akte>();
   return result.results ?? [];
 }
 
@@ -63,4 +65,27 @@ export async function findAkteByMandantToken(
     .bind(token)
     .first<Akte>();
   return row ?? null;
+}
+
+export async function renameAkte(
+  db: D1Database,
+  kanzleiId: string,
+  akteId: string,
+  newLabel: string | null,
+): Promise<void> {
+  await db
+    .prepare('UPDATE akte SET case_label = ?1 WHERE id = ?2 AND kanzlei_id = ?3')
+    .bind(newLabel, akteId, kanzleiId)
+    .run();
+}
+
+export async function archiveAkte(
+  db: D1Database,
+  kanzleiId: string,
+  akteId: string,
+): Promise<void> {
+  await db
+    .prepare(`UPDATE akte SET status = 'archived' WHERE id = ?1 AND kanzlei_id = ?2`)
+    .bind(akteId, kanzleiId)
+    .run();
 }

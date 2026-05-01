@@ -1,0 +1,152 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { findKanzleiById } from '../../lib/db';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+
+const url = new URL(Astro.request.url);
+const saved = url.searchParams.get('saved') === '1';
+const error = url.searchParams.get('error');
+
+const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+---
+<AppLayout title="Einstellungen — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/dashboard" class="tlink">← Dashboard</a>
+    </p>
+
+    <header style="margin-bottom: 32px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Einstellungen</span>
+      </span>
+      <h1 class="serif" style="font-size: 36px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        Kanzlei-Einstellungen
+      </h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Diese Angaben erscheinen im Mandanten-Onboarding und in den Bestätigungstexten.
+      </p>
+    </header>
+
+    {saved && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Einstellungen gespeichert.
+      </p>
+    )}
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    <form method="post" action="/api/kanzlei/update">
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 16px;">Kanzlei</h2>
+
+        <label class="app-label">
+          <span class="app-label-text">Anzeigename der Kanzlei *</span>
+          <input
+            class="app-input"
+            type="text"
+            name="display_name"
+            required
+            maxlength="80"
+            value={kanzlei.display_name}
+            placeholder="Kanzlei Müller & Schulz"
+          />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Wird Mandant:innen im Onboarding und in Mails angezeigt.
+          </span>
+        </label>
+
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Login-E-Mail (nicht änderbar)</span>
+          <input
+            class="app-input"
+            type="email"
+            value={kanzlei.email}
+            disabled
+            style="background: #f5f3ee; color: var(--muted);"
+          />
+        </label>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Vollmacht-Text</h2>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+          Wird dem Mandanten in Schritt 02 angezeigt. Lassen Sie das Feld leer, um den Standardtext zu verwenden.
+        </p>
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Vollmacht-Vorlage</span>
+          <textarea
+            class="app-input"
+            name="vollmacht_template"
+            rows="8"
+            placeholder={defaultVollmacht}
+            style="font-family: var(--sans); resize: vertical; min-height: 160px;"
+          >{kanzlei.vollmacht_template ?? ''}</textarea>
+        </label>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Honorar</h2>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+          Werte werden in die Honorarvereinbarung (Schritt 04) eingesetzt. Standardwerte (250&thinsp;€/Std., 500&thinsp;€ Vorschuss) gelten, wenn die Felder leer bleiben.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <label class="app-label">
+            <span class="app-label-text">Stundenhonorar (Text)</span>
+            <input
+              class="app-input"
+              type="text"
+              name="honorar_hourly"
+              maxlength="120"
+              value={kanzlei.honorar_hourly ?? ''}
+              placeholder="250,00 EUR netto je angefangener Stunde"
+            />
+          </label>
+          <label class="app-label">
+            <span class="app-label-text">Vorschuss</span>
+            <input
+              class="app-input"
+              type="text"
+              name="honorar_advance"
+              maxlength="120"
+              value={kanzlei.honorar_advance ?? ''}
+              placeholder="500,00 EUR"
+            />
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="cta-button">Speichern</button>
+    </form>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cta-button:hover { background: #1a2436; }
+</style>

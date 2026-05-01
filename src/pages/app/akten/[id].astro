@@ -113,11 +113,7 @@ const data1 = parseStepData(stepByNo.get(1)) as {
           <dt>Telefon</dt>
           <dd>{data1.telefon || '—'}</dd>
           <dt>E-Mail</dt>
-          <dd>
-            <Fragment set:html="<!--email_off-->" />
-            {data1.email ?? '—'}
-            <Fragment set:html="<!--/email_off-->" />
-          </dd>
+          <dd><!--email_off-->{data1.email ?? '—'}<!--/email_off--></dd>
         </dl>
       </div>
     )}

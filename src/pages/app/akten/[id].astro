@@ -13,8 +13,11 @@ const id = Astro.params.id ?? '';
 const akte = await findAkteById(env.DB, session.kanzlei_id, id);
 if (!akte) return new Response('Nicht gefunden', { status: 404 });
 
-const origin = new URL(Astro.request.url).origin;
+const reqUrl = new URL(Astro.request.url);
+const origin = reqUrl.origin;
 const mandantUrl = `${origin}/m/${akte.mandant_token}`;
+const invitedTo = reqUrl.searchParams.get('invited');
+const inviteError = reqUrl.searchParams.get('invite_error');
 
 type StepRow = {
   step_no: number;
@@ -86,15 +89,60 @@ const data1 = parseStepData(stepByNo.get(1)) as {
 
     <div class="app-card" style="margin-bottom: 24px;">
       <h2 class="serif" style="font-size: 22px; margin-bottom: 12px;">Mandanten-Link</h2>
-      <p style="color: var(--ink-2); font-size: 15px; margin-bottom: 16px;">
-        Schicken Sie diesen Link an Ihre/n Mandant:in. Eine Sitzung, einmalig zugreifbar.
+      <p style="color: var(--ink-2); font-size: 15px; margin-bottom: 20px;">
+        Direkt per E-Mail an die/den Mandant:in schicken — oder Link kopieren.
+        Der Link kann mehrfach geöffnet werden, Bearbeitung jederzeit fortsetzbar.
       </p>
-      <input
-        readonly
-        value={mandantUrl}
-        class="app-input"
-        style="font-family: var(--mono); font-size: 13px;"
-      />
+
+      {invitedTo && (
+        <p class="app-success" style="margin: 0 0 20px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+          ✓ Einladung an <strong>{invitedTo}</strong> verschickt.
+        </p>
+      )}
+      {inviteError && (
+        <p class="app-error" style="margin: 0 0 20px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+          {inviteError}
+        </p>
+      )}
+
+      <form method="post" action="/api/akten/invite" style="margin-bottom: 24px;">
+        <input type="hidden" name="akte_id" value={akte.id} />
+        <label class="app-label" style="margin-bottom: 12px;">
+          <span class="app-label-text">E-Mail-Adresse Mandant:in</span>
+          <div style="display: flex; gap: 8px;">
+            <input
+              class="app-input"
+              type="email"
+              name="mandant_email"
+              required
+              autocomplete="off"
+              placeholder="mandant@beispiel.de"
+              style="flex: 1;"
+            />
+            <button type="submit" class="cta-button">Einladung schicken</button>
+          </div>
+        </label>
+      </form>
+
+      <div>
+        <span class="app-label-text" style="display: block; margin-bottom: 6px;">Oder Link kopieren</span>
+        <div style="display: flex; gap: 8px;">
+          <input
+            id="mandant-link-input"
+            readonly
+            value={mandantUrl}
+            class="app-input"
+            style="font-family: var(--mono); font-size: 13px; flex: 1;"
+            onclick="this.select()"
+          />
+          <button
+            type="button"
+            id="copy-link-btn"
+            class="cta-button cta-button--secondary"
+            onclick="(function(b){const i=document.getElementById('mandant-link-input');navigator.clipboard.writeText(i.value).then(()=>{const t=b.textContent;b.textContent='✓ Kopiert';setTimeout(()=>b.textContent=t,1500);});})(this)"
+          >Kopieren</button>
+        </div>
+      </div>
     </div>
 
     {stepByNo.get(1)?.signed_at && (
@@ -225,4 +273,24 @@ const data1 = parseStepData(stepByNo.get(1)) as {
   .file-row:hover { background: #fafaf7; }
   .file-row:hover .file-name { text-decoration: underline; }
   .file-name { display: inline-flex; align-items: center; }
+  .cta-button {
+    display: inline-block;
+    padding: 14px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .cta-button--secondary {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .cta-button--secondary:hover { background: #f5f3ee; }
 </style>

@@ -142,3 +142,46 @@ export async function sendSubmissionNotificationEmail(
     'submission-notification',
   );
 }
+
+function mandantInviteBody(
+  kanzleiName: string,
+  inviteUrl: string,
+  caseLabel: string | null,
+): string {
+  const caseLine = caseLabel ? `\nBetreff: ${caseLabel}` : '';
+  return [
+    'Sehr geehrte/r Mandant:in,',
+    '',
+    `die Kanzlei ${kanzleiName} hat ein digitales Mandanten-Onboarding für Sie vorbereitet.${caseLine}`,
+    '',
+    'Über folgenden Link tragen Sie Ihre Stammdaten ein, bestätigen Vollmacht,',
+    'Datenschutz und Honorarvereinbarung und laden bei Bedarf Dokumente hoch:',
+    '',
+    inviteUrl,
+    '',
+    'Sie können den Link mehrfach öffnen und die Bearbeitung jederzeit fortsetzen,',
+    'solange noch nicht abgeschickt wurde. Die Übertragung erfolgt verschlüsselt.',
+    '',
+    `Bei Fragen wenden Sie sich direkt an die Kanzlei ${kanzleiName}.`,
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+}
+
+export async function sendMandantInviteEmail(
+  env: Env,
+  toMandant: string,
+  kanzleiName: string,
+  inviteUrl: string,
+  caseLabel: string | null,
+): Promise<{ delivered: Backend }> {
+  return sendEmail(
+    env,
+    toMandant,
+    `${kanzleiName} — Ihr Mandanten-Onboarding`,
+    mandantInviteBody(kanzleiName, inviteUrl, caseLabel),
+    'mandant-invite',
+  );
+}

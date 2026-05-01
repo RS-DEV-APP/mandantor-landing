@@ -1,0 +1,138 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import { findAktenTypById, parseFileHints } from '../../../../lib/akten_typ';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const idParam = Astro.params.id ?? '';
+const isNew = idParam === 'new';
+
+const typ = isNew ? null : await findAktenTypById(env.DB, session.kanzlei_id, idParam);
+if (!isNew && !typ) return new Response('Nicht gefunden', { status: 404 });
+
+const url = new URL(Astro.request.url);
+const error = url.searchParams.get('error');
+
+const fileHints = typ ? parseFileHints(typ.file_hints_json) : [];
+
+const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+
+const defaultDsgvo = `Die Kanzlei {KANZLEI} verarbeitet Ihre personenbezogenen Daten gemäß Art. 6 Abs. 1 lit. b DSGVO zur Erfüllung des Mandatsverhältnisses sowie nach Art. 6 Abs. 1 lit. c DSGVO zur Erfüllung gesetzlicher Aufbewahrungspflichten. Daten werden bis zum Ablauf der gesetzlichen Aufbewahrungsfristen gespeichert.`;
+
+const headline = isNew ? 'Neuer Akten-Typ' : `Akten-Typ: ${typ!.name}`;
+---
+<AppLayout title={`${headline} — Mandantor`}>
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/settings" class="tlink">← Einstellungen</a>
+    </p>
+
+    <header style="margin-bottom: 32px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Akten-Typ</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">{headline}</h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Vorlage-Set für eine bestimmte Mandats-Art. Felder leer lassen, um die Kanzlei-Standardwerte zu verwenden.
+      </p>
+    </header>
+
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    <form method="post" action="/api/kanzlei/akten-typ/save">
+      {!isNew && <input type="hidden" name="id" value={typ!.id} />}
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 16px;">Bezeichnung</h2>
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Name *</span>
+          <input class="app-input" type="text" name="name" required maxlength="80" value={typ?.name ?? ''} placeholder="z. B. Mietsache, Verkehrsunfall, Familienrecht" />
+        </label>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Vollmacht</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Platzhalter <code>{'{KANZLEI}'}</code> wird automatisch durch Ihren Kanzlei-Namen ersetzt.
+        </p>
+        <textarea class="app-input" name="vollmacht_template" rows="6" placeholder={defaultVollmacht} style="font-family: var(--sans); resize: vertical;">{typ?.vollmacht_template ?? ''}</textarea>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Datenschutz-Hinweise</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Optional eigener DSGVO-Text für diesen Typ (z.B. zusätzliche Verarbeitungszwecke). Platzhalter <code>{'{KANZLEI}'}</code> verfügbar.
+        </p>
+        <textarea class="app-input" name="dsgvo_template" rows="6" placeholder={defaultDsgvo} style="font-family: var(--sans); resize: vertical;">{typ?.dsgvo_template ?? ''}</textarea>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 16px;">Honorar</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <label class="app-label" style="margin-bottom: 0;">
+            <span class="app-label-text">Stundenhonorar (Text)</span>
+            <input class="app-input" type="text" name="honorar_hourly" maxlength="120" value={typ?.honorar_hourly ?? ''} placeholder="z. B. 280,00 EUR netto je Stunde" />
+          </label>
+          <label class="app-label" style="margin-bottom: 0;">
+            <span class="app-label-text">Vorschuss</span>
+            <input class="app-input" type="text" name="honorar_advance" maxlength="120" value={typ?.honorar_advance ?? ''} placeholder="z. B. 750,00 EUR" />
+          </label>
+        </div>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Erwartete Dokumente</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Eine Datei pro Zeile. Wird Mandant:innen in Schritt 5 angezeigt: „Bitte laden Sie folgende Dokumente hoch."
+        </p>
+        <textarea class="app-input" name="file_hints" rows="6" placeholder={'Polizeibericht\nSchadensgutachten\nVersicherungsschein'} style="font-family: var(--sans); resize: vertical;">{fileHints.join('\n')}</textarea>
+      </div>
+
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button type="submit" class="cta-button">{isNew ? 'Anlegen' : 'Speichern'}</button>
+        <a href="/app/settings" class="tlink" style="font-size: 14px;">Abbrechen</a>
+      </div>
+    </form>
+
+    {!isNew && (
+      <form method="post" action="/api/kanzlei/akten-typ/delete" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--rule);"
+        onsubmit="return confirm('Akten-Typ löschen? Bestehende Akten dieses Typs bleiben — verlieren aber die Typ-Zuordnung.')">
+        <input type="hidden" name="id" value={typ!.id} />
+        <button type="submit" class="cta-button cta-button--danger">Akten-Typ löschen</button>
+      </form>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .cta-button--danger {
+    background: var(--paper);
+    color: #b23a3a;
+    border-color: #e6c5c5;
+  }
+  .cta-button--danger:hover { background: #fdf0f0; }
+</style>

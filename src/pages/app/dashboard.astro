@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { findKanzleiById } from '../../lib/db';
 import { listAkten } from '../../lib/akten';
+import { listAktenTypen } from '../../lib/akten_typ';
 
 export const prerender = false;
 
@@ -21,6 +22,7 @@ const url = new URL(Astro.request.url);
 const showArchived = url.searchParams.get('archived_view') === '1';
 const archivedNotice = url.searchParams.get('archived');
 const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived });
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
 const visibleAkten = showArchived
   ? akten.filter((a) => a.status === 'archived')
   : akten;
@@ -70,11 +72,22 @@ const needsKanzleiSetup =
       <p style="color: var(--ink-2); font-size: 14px; margin-bottom: 20px;">
         Sie erhalten einen Mandanten-Link, den Sie per E-Mail verschicken oder kopieren können.
       </p>
-      <form method="post" action="/api/akten/create" style="display: flex; gap: 12px; align-items: flex-end;">
-        <label class="app-label" style="margin: 0; flex: 1;">
+      <form method="post" action="/api/akten/create" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+        <label class="app-label" style="margin: 0; flex: 2; min-width: 200px;">
           <span class="app-label-text">Aktenbezeichnung (optional)</span>
           <input type="text" name="case_label" placeholder="z. B. Mietsache Müller" class="app-input" />
         </label>
+        {aktenTypen.length > 0 && (
+          <label class="app-label" style="margin: 0; flex: 1; min-width: 180px;">
+            <span class="app-label-text">Akten-Typ</span>
+            <select name="akten_typ_id" class="app-input">
+              <option value="">— Standard —</option>
+              {aktenTypen.map((t) => (
+                <option value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="submit" class="btn">
           <span>Akte anlegen</span>
           <span class="arrow">→</span>

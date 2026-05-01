@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { findAkteByMandantToken } from '../../lib/akten';
 import { findKanzleiById } from '../../lib/db';
+import { findAktenTypByIdOnly, parseFileHints } from '../../lib/akten_typ';
 import { listSteps, listFiles, STEP_LABELS, STEP_COUNT, MAX_UPLOAD_BYTES, MAX_FILES_PER_AKTE, ALLOWED_UPLOAD_EXTENSIONS } from '../../lib/mandant';
 
 export const prerender = false;
@@ -16,8 +17,13 @@ if (!akte) return new Response('Nicht gefunden', { status: 404 });
 const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);
 if (!kanzlei) return new Response('Kanzlei nicht gefunden', { status: 404 });
 
+const aktenTyp = akte.akten_typ_id
+  ? await findAktenTypByIdOnly(env.DB, akte.akten_typ_id)
+  : null;
+
 const steps = await listSteps(env.DB, akte.id);
 const files = await listFiles(env.DB, akte.id);
+const fileHints = aktenTyp ? parseFileHints(aktenTyp.file_hints_json) : [];
 const signedSteps = new Set(steps.filter((s) => s.signed_at).map((s) => s.step_no));
 const allSignedExceptUpload = [1, 2, 3, 4].every((n) => signedSteps.has(n));
 const isSubmitted = akte.status === 'submitted';
@@ -41,14 +47,22 @@ const data2 = stepDataMap.get(2) as { signed_name?: string } | undefined;
 const data3 = stepDataMap.get(3) as { signed_name?: string } | undefined;
 const data4 = stepDataMap.get(4) as { signed_name?: string } | undefined;
 
-const vollmachtRaw = kanzlei.vollmacht_template?.trim() || `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
-const vollmachtText = vollmachtRaw.replace(/\{KANZLEI\}/g, kanzlei.display_name);
+function applyPlaceholders(text: string): string {
+  return text.replace(/\{KANZLEI\}/g, kanzlei.display_name);
+}
 
-const honorarHourly = (kanzlei.honorar_hourly?.trim()) || '250,00 EUR netto je angefangener Stunde';
-const honorarAdvance = (kanzlei.honorar_advance?.trim()) || '500,00 EUR';
+const vollmachtRaw = aktenTyp?.vollmacht_template?.trim()
+  || kanzlei.vollmacht_template?.trim()
+  || `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+const vollmachtText = applyPlaceholders(vollmachtRaw);
+
+const honorarHourly = aktenTyp?.honorar_hourly?.trim() || kanzlei.honorar_hourly?.trim() || '250,00 EUR netto je angefangener Stunde';
+const honorarAdvance = aktenTyp?.honorar_advance?.trim() || kanzlei.honorar_advance?.trim() || '500,00 EUR';
 const honorarText = `Mandant und Kanzlei ${kanzlei.display_name} vereinbaren ein Stundenhonorar in Höhe von ${honorarHourly} zuzüglich gesetzlicher Umsatzsteuer. Vor Tätigkeitsaufnahme wird ein Vorschuss in Höhe von ${honorarAdvance} fällig. Reisezeit gilt als Arbeitszeit. Die Abrechnung erfolgt im 6-Minuten-Takt. Diese Vereinbarung gilt nur außergerichtlich; im gerichtlichen Verfahren wird mindestens nach RVG abgerechnet.`;
 
-const dsgvoText = `Die Kanzlei ${kanzlei.display_name} verarbeitet Ihre personenbezogenen Daten gemäß Art. 6 Abs. 1 lit. b DSGVO zur Erfüllung des Mandatsverhältnisses sowie nach Art. 6 Abs. 1 lit. c DSGVO zur Erfüllung gesetzlicher Aufbewahrungspflichten. Daten werden bis zum Ablauf der gesetzlichen Aufbewahrungsfristen (i.d.R. 6 Jahre nach Mandatsende, in Einzelfällen länger) gespeichert. Sie haben jederzeit Anspruch auf Auskunft, Berichtigung, Löschung sowie Datenübertragbarkeit. Beschwerden sind an die zuständige Aufsichtsbehörde zu richten.`;
+const dsgvoRaw = aktenTyp?.dsgvo_template?.trim()
+  || `Die Kanzlei {KANZLEI} verarbeitet Ihre personenbezogenen Daten gemäß Art. 6 Abs. 1 lit. b DSGVO zur Erfüllung des Mandatsverhältnisses sowie nach Art. 6 Abs. 1 lit. c DSGVO zur Erfüllung gesetzlicher Aufbewahrungspflichten. Daten werden bis zum Ablauf der gesetzlichen Aufbewahrungsfristen (i.d.R. 6 Jahre nach Mandatsende, in Einzelfällen länger) gespeichert. Sie haben jederzeit Anspruch auf Auskunft, Berichtigung, Löschung sowie Datenübertragbarkeit. Beschwerden sind an die zuständige Aufsichtsbehörde zu richten.`;
+const dsgvoText = applyPlaceholders(dsgvoRaw);
 
 const submittedDate = akte.submitted_at
   ? new Date(akte.submitted_at * 1000).toLocaleString('de-DE')
@@ -68,9 +82,9 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
       <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
         Mandanten-Onboarding
       </h1>
-      {akte.case_label && (
+      {(akte.case_label || aktenTyp) && (
         <p style="font-size: 15px; color: var(--muted); margin-top: 4px;">
-          Akte: {akte.case_label}
+          {[aktenTyp?.name, akte.case_label].filter(Boolean).join(' · ')}
         </p>
       )}
     </header>
@@ -266,9 +280,23 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
           <div>
             <div class="app-card" style="margin-bottom: 24px;">
               <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Dokumente hochladen</h2>
-              <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
-                Optional. Maximal {MAX_FILES_PER_AKTE} Dateien · {Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB pro Datei · {ALLOWED_UPLOAD_EXTENSIONS.join(', ')}.
-              </p>
+              {fileHints.length > 0 ? (
+                <>
+                  <p style="color: var(--ink-2); font-size: 14px; margin-bottom: 12px;">
+                    Bitte laden Sie folgende Dokumente hoch:
+                  </p>
+                  <ul style="font-size: 14px; padding-left: 20px; margin: 0 0 20px 0; color: var(--ink-2);">
+                    {fileHints.map((h) => <li style="margin-bottom: 4px;">{h}</li>)}
+                  </ul>
+                  <p style="color: var(--muted); font-size: 13px; margin-bottom: 24px;">
+                    Maximal {MAX_FILES_PER_AKTE} Dateien · {Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB pro Datei · {ALLOWED_UPLOAD_EXTENSIONS.join(', ')}.
+                  </p>
+                </>
+              ) : (
+                <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+                  Optional. Maximal {MAX_FILES_PER_AKTE} Dateien · {Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB pro Datei · {ALLOWED_UPLOAD_EXTENSIONS.join(', ')}.
+                </p>
+              )}
 
               {files.length > 0 && (
                 <ul style="list-style: none; padding: 0; margin: 0 0 24px 0;">

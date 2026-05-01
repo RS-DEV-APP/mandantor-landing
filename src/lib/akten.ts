@@ -6,6 +6,7 @@ export type Akte = {
   mandant_token: string;
   case_label: string | null;
   status: 'draft' | 'in_progress' | 'submitted' | 'archived';
+  akten_typ_id: string | null;
   created_at: number;
   submitted_at: number | null;
 };
@@ -14,14 +15,15 @@ export async function createAkte(
   db: D1Database,
   kanzleiId: string,
   caseLabel: string | null,
+  aktenTypId: string | null = null,
 ): Promise<Akte> {
   const id = newId();
   const mandantToken = newToken();
   await db
     .prepare(
-      'INSERT INTO akte (id, kanzlei_id, mandant_token, case_label, status) VALUES (?1, ?2, ?3, ?4, ?5)',
+      'INSERT INTO akte (id, kanzlei_id, mandant_token, case_label, status, akten_typ_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
     )
-    .bind(id, kanzleiId, mandantToken, caseLabel ?? null, 'draft')
+    .bind(id, kanzleiId, mandantToken, caseLabel ?? null, 'draft', aktenTypId)
     .run();
 
   const row = await db

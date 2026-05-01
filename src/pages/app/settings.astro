@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { findKanzleiById } from '../../lib/db';
+import { listAktenTypen, parseFileHints } from '../../lib/akten_typ';
 
 export const prerender = false;
 
@@ -12,8 +13,12 @@ if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
 const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
 if (!kanzlei) return Astro.redirect('/app/login', 302);
 
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
+
 const url = new URL(Astro.request.url);
 const saved = url.searchParams.get('saved') === '1';
+const savedTyp = url.searchParams.get('saved_typ');
+const deletedTyp = url.searchParams.get('deleted_typ');
 const error = url.searchParams.get('error');
 
 const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
@@ -40,6 +45,16 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
     {saved && (
       <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
         ✓ Einstellungen gespeichert.
+      </p>
+    )}
+    {savedTyp && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Akten-Typ <strong>{savedTyp}</strong> gespeichert.
+      </p>
+    )}
+    {deletedTyp && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Akten-Typ <strong>{deletedTyp}</strong> gelöscht. Bestehende Akten dieses Typs bleiben (ohne Typ-Zuordnung) erhalten.
       </p>
     )}
     {error && (
@@ -131,6 +146,45 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
 
       <button type="submit" class="cta-button">Speichern</button>
     </form>
+
+    <div class="app-card" style="margin-top: 40px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 8px;">
+        <h2 class="serif" style="font-size: 22px; margin: 0;">Akten-Typen</h2>
+        <a href="/app/settings/akten-typ/new" class="tlink" style="font-size: 14px;">+ Neuer Typ</a>
+      </div>
+      <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+        Eigene Vorlagen-Sets für unterschiedliche Mandats-Arten (z.B. Mietsache, Verkehrsunfall, Familienrecht).
+        Beim Anlegen einer Akte wählen Sie den passenden Typ — Mandant:innen sehen dann typ-spezifische Vollmacht-, DSGVO- und Honorartexte sowie eine Liste der erwarteten Dokumente. Ohne Typ-Auswahl gelten die obigen Standardwerte.
+      </p>
+
+      {aktenTypen.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px; padding: 16px 0; border-top: 1px solid var(--rule);">
+          Noch keine Akten-Typen angelegt.
+        </p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {aktenTypen.map((t) => {
+            const hints = parseFileHints(t.file_hints_json);
+            return (
+              <li style="border-top: 1px solid var(--rule); padding: 16px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px;">
+                  <div style="flex: 1;">
+                    <div style="font-size: 16px; font-weight: 500;">{t.name}</div>
+                    <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                      {t.vollmacht_template ? '✓ Vollmacht' : '— Vollmacht (Standard)'} ·{' '}
+                      {t.dsgvo_template ? '✓ DSGVO' : '— DSGVO (Standard)'} ·{' '}
+                      {(t.honorar_hourly || t.honorar_advance) ? '✓ Honorar' : '— Honorar (Standard)'} ·{' '}
+                      {hints.length > 0 ? `${hints.length} Dokument-Hinweise` : '— Dokument-Hinweise'}
+                    </div>
+                  </div>
+                  <a href={`/app/settings/akten-typ/${t.id}`} class="tlink" style="font-size: 13px;">Bearbeiten →</a>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   </main>
 </AppLayout>
 

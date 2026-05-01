@@ -3,7 +3,7 @@
 // 2. Cloudflare MAILER (env.MAILER) — wenn binding verfügbar
 // 3. console.log — Dev-Fallback, Magic-Link landet in Cloudflare Functions Logs
 
-const FROM = 'hello@mandantor.de';
+const FROM = 'hello@send.mandantor.de';
 const FROM_NAME = 'Mandantor';
 
 const SUBJECT = 'Mandantor — Anmeldelink';

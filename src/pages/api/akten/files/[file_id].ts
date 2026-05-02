@@ -19,7 +19,7 @@ function encodeFilename(name: string): string {
   return encodeURIComponent(safe).replace(/['()]/g, escape).replace(/\*/g, '%2A');
 }
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
   const env = locals.runtime?.env;
   const session = locals.session;
   if (!env?.DB || !env.UPLOADS || !session) {
@@ -46,11 +46,16 @@ export const GET: APIRoute = async ({ params, locals }) => {
   const obj = await env.UPLOADS.get(row.r2_key);
   if (!obj) return new Response('Not found', { status: 404 });
 
+  const inline = url.searchParams.get('inline') === '1';
+  const disposition = inline ? 'inline' : 'attachment';
+
   const headers = new Headers();
   headers.set('Content-Type', row.mime_type ?? obj.httpMetadata?.contentType ?? 'application/octet-stream');
   headers.set('Content-Length', row.size_bytes.toString());
-  headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeFilename(row.file_name)}`);
+  headers.set('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeFilename(row.file_name)}`);
   headers.set('Cache-Control', 'private, no-store');
+  // Lock down inline rendering to same-origin only — keeps PDFs from being framed by third parties.
+  headers.set('Content-Security-Policy', "frame-ancestors 'self'");
 
   return new Response(obj.body, { status: 200, headers });
 };

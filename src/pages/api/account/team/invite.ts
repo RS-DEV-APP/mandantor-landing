@@ -7,6 +7,8 @@ import {
   type Role,
 } from '../../../../lib/users';
 import { sendTeamInviteEmail } from '../../../../lib/mail';
+import { getSubscription, countActiveSeats } from '../../../../lib/subscription';
+import { PLAN_LIMITS } from '../../../../lib/stripe';
 
 export const prerender = false;
 
@@ -45,6 +47,22 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
   if (!kanzlei) return new Response('Kanzlei nicht gefunden', { status: 404 });
+
+  const sub = await getSubscription(env.DB, session.kanzlei_id);
+  const plan = sub?.plan ?? 'pilot';
+  const seatLimit = PLAN_LIMITS[plan]?.seats ?? null;
+  if (seatLimit !== null) {
+    const seats = await countActiveSeats(env.DB, session.kanzlei_id);
+    if (seats >= seatLimit) {
+      return redirect(
+        '/app/account/team?error=' +
+          encodeURIComponent(
+            `Sitz-Limit erreicht (${seatLimit} im ${plan}-Plan). Upgrade unter Account → Abrechnung.`,
+          ),
+        303,
+      );
+    }
+  }
 
   const inviter = await findUserById(env.DB, session.user_id);
   const inviterName = inviter?.display_name?.trim() || inviter?.email || 'Ein Kollege';

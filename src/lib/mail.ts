@@ -268,3 +268,71 @@ export async function sendTeamInviteEmail(
     'team-invite',
   );
 }
+
+function reopenBody(kanzleiName: string, reason: string, inviteUrl: string): string {
+  return [
+    'Sehr geehrte/r Mandant:in,',
+    '',
+    `${kanzleiName} bittet Sie um Ergänzungen oder Korrekturen an den von Ihnen übermittelten Daten.`,
+    '',
+    'Anmerkung der Kanzlei:',
+    reason,
+    '',
+    'Bitte öffnen Sie folgenden Link, passen Sie die betroffenen Schritte an und senden Sie die Akte erneut ab:',
+    '',
+    inviteUrl,
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+}
+
+export async function sendReopenRequestEmail(
+  env: Env,
+  toMandant: string,
+  kanzleiName: string,
+  reason: string,
+  inviteUrl: string,
+): Promise<{ delivered: Backend }> {
+  return sendEmail(
+    env,
+    toMandant,
+    `${kanzleiName} — Bitte um Ergänzung Ihrer Akte`,
+    reopenBody(kanzleiName, reason, inviteUrl),
+    'akte-reopen',
+  );
+}
+
+function reminderBody(kanzleiName: string, inviteUrl: string): string {
+  return [
+    'Sehr geehrte/r Mandant:in,',
+    '',
+    `eine kurze Erinnerung: ${kanzleiName} hat ein Mandanten-Onboarding für Sie vorbereitet, das noch nicht abgeschlossen ist.`,
+    '',
+    'Bitte schließen Sie die Stammdaten, Bestätigungen und ggf. Dokumenten-Uploads über folgenden Link ab:',
+    '',
+    inviteUrl,
+    '',
+    'Falls Sie das Mandat nicht weiterverfolgen möchten oder Rückfragen haben, wenden Sie sich bitte direkt an die Kanzlei.',
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+}
+
+export async function sendReminderEmail(
+  env: Env,
+  toMandant: string,
+  kanzleiName: string,
+  inviteUrl: string,
+): Promise<{ delivered: Backend }> {
+  return sendEmail(
+    env,
+    toMandant,
+    `${kanzleiName} — Erinnerung: Mandanten-Onboarding`,
+    reminderBody(kanzleiName, inviteUrl),
+    'akte-reminder',
+  );
+}

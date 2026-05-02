@@ -100,14 +100,43 @@ const fmtDate = (ts: number | null) => ts ? new Date(ts * 1000).toLocaleDateStri
       </div>
     </div>
 
+    {url.searchParams.get('error') && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {url.searchParams.get('error')}
+      </p>
+    )}
+    {url.searchParams.get('checkout') === 'success' && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Zahlung eingerichtet. Subscription wird in den nächsten Sekunden aktiv (Webhook läuft).
+      </p>
+    )}
+    {url.searchParams.get('checkout') === 'cancel' && (
+      <p style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Zahlung abgebrochen — Plan unverändert.
+      </p>
+    )}
+
     {isPilot && (
       <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
         <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Pilot-Phase</h2>
-        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0;">
-          Während der Pilot-Phase ist die Nutzung kostenlos. Nach Pilot-Ende stellen wir auf einen
-          Standard-Tarif um (geplant: 29 €/Monat pro Anwalt). Die Bezahlung läuft dann über Stripe; aktuelle
-          Rechnungen sind hier sichtbar, sobald die Bezahlfunktion aktiviert ist.
+        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Während der Pilot-Phase ist die Nutzung kostenlos und ohne Limits. Wenn Sie produktiv weiterarbeiten möchten, wechseln Sie auf den <strong>Starter-Plan (39 €/Monat)</strong> oder <strong>Pro (79 €/Monat pro Sitz)</strong>.
         </p>
+        <form method="post" action="/api/stripe/checkout" style="margin: 0;">
+          <button type="submit" class="cta-button">Auf Starter upgraden</button>
+        </form>
+      </div>
+    )}
+
+    {!isPilot && (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin: 0 0 12px;">Plan ändern</h2>
+        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Im Stripe-Kundenportal können Sie Plan, Sitze, Zahlungsmittel und Rechnungsanschrift verwalten oder kündigen.
+        </p>
+        <form method="post" action="/api/stripe/portal" style="margin: 0;">
+          <button type="submit" class="cta-button">Zum Stripe-Kundenportal</button>
+        </form>
       </div>
     )}
 
@@ -163,4 +192,17 @@ const fmtDate = (ts: number | null) => ts ? new Date(ts * 1000).toLocaleDateStri
   .status-open { background: #fef7e6; color: #8a6d1a; }
   .status-draft { background: #f0f0f0; color: #555; }
   .status-void, .status-uncollectible { background: #fdf0f0; color: #8a3030; }
+  .cta-button {
+    display: inline-block;
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
 </style>

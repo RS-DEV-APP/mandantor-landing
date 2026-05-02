@@ -47,6 +47,19 @@ export async function saveStep(
     )
     .bind(akteId, stepNo, json, now, ipHash, uaHash)
     .run();
+
+  // Step 1 contains contact data — cache email + name on akte for search/reminders.
+  if (stepNo === 1) {
+    const d = data as { email?: string; vorname?: string; nachname?: string };
+    const email = (d.email ?? '').toString().trim().toLowerCase() || null;
+    const name = [d.vorname, d.nachname].filter(Boolean).join(' ').trim() || null;
+    await db
+      .prepare(`UPDATE akte SET mandant_email = COALESCE(?1, mandant_email), mandant_name = ?2,
+                                 status = CASE status WHEN 'draft' THEN 'in_progress' ELSE status END
+                WHERE id = ?3`)
+      .bind(email, name, akteId)
+      .run();
+  }
 }
 
 export type AkteFile = {

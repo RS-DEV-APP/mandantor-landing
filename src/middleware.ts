@@ -5,7 +5,7 @@ import { findUserById } from './lib/users';
 import { hashToken } from './lib/hash';
 
 const PUBLIC_APP_PATHS = new Set(['/app/login', '/app/login/', '/app/invite', '/app/invite/']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/stripe/webhook'];
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/stripe/webhook', '/api/cron/'];
 
 function needsAuth(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return !PUBLIC_APP_PATHS.has(pathname);

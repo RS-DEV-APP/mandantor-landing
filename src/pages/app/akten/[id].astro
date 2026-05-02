@@ -2,6 +2,7 @@
 import AppLayout from '../../../layouts/AppLayout.astro';
 import { findAkteById } from '../../../lib/akten';
 import { STEP_LABELS } from '../../../lib/mandant';
+import { listNotesByAkte } from '../../../lib/notes';
 
 export const prerender = false;
 
@@ -18,6 +19,8 @@ const origin = reqUrl.origin;
 const mandantUrl = `${origin}/m/${akte.mandant_token}`;
 const invitedTo = reqUrl.searchParams.get('invited');
 const inviteError = reqUrl.searchParams.get('invite_error');
+const reopened = reqUrl.searchParams.get('reopened') === '1';
+const detailError = reqUrl.searchParams.get('error');
 
 type StepRow = {
   step_no: number;
@@ -31,6 +34,7 @@ const stepsResult = await env.DB
   .prepare('SELECT step_no, data_json, signed_at, ip_hash, ua_hash FROM akte_step WHERE akte_id = ?1 ORDER BY step_no')
   .bind(akte.id)
   .all<StepRow>();
+const notes = await listNotesByAkte(env.DB, akte.id);
 const filesResult = await env.DB
   .prepare('SELECT id, file_name, size_bytes FROM akte_file WHERE akte_id = ?1 ORDER BY uploaded_at')
   .bind(akte.id)
@@ -98,6 +102,15 @@ const data1 = parseStepData(stepByNo.get(1)) as {
           >
             Akte umbenennen
           </button>
+          {akte.status === 'submitted' && (
+            <button
+              type="button"
+              class="akte-menu-item"
+              onclick="document.getElementById('reopen-dialog').showModal()"
+            >
+              An Mandant zurückgeben…
+            </button>
+          )}
           {akte.status !== 'archived' && (
             <button
               type="button"
@@ -117,6 +130,49 @@ const data1 = parseStepData(stepByNo.get(1)) as {
         <input type="hidden" name="akte_id" value={akte.id} />
       </form>
     </header>
+
+    <dialog id="reopen-dialog" class="reopen-dialog">
+      <form method="post" action="/api/akten/reopen">
+        <input type="hidden" name="akte_id" value={akte.id} />
+        <h3 class="serif" style="margin: 0 0 8px; font-size: 20px;">Akte an Mandant zurückgeben</h3>
+        <p style="font-size: 14px; color: var(--ink-2); margin-bottom: 16px;">
+          Beschreiben Sie kurz, was die/der Mandant:in ergänzen oder korrigieren soll. Der Text wird per E-Mail
+          an die hinterlegte Mandant-Adresse{akte.mandant_email && <> (<code>{akte.mandant_email}</code>)</>} verschickt.
+        </p>
+        <label class="app-label" style="margin-bottom: 16px;">
+          <span class="app-label-text">Anmerkung</span>
+          <textarea class="app-input" name="reason" required maxlength="500" rows="4"
+            placeholder="z. B.: Bitte tragen Sie das korrekte Geburtsdatum ein und laden Sie zusätzlich die Versicherungspolice hoch."
+            style="font-family: var(--sans); resize: vertical; min-height: 100px;"></textarea>
+        </label>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" onclick="document.getElementById('reopen-dialog').close()" class="cta-button cta-button--secondary">Abbrechen</button>
+          <button type="submit" class="cta-button">Zurückgeben</button>
+        </div>
+      </form>
+    </dialog>
+
+    {reopened && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Akte wurde an Mandant:in zurückgegeben. Der Status ist jetzt „In Bearbeitung".
+      </p>
+    )}
+    {detailError && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {detailError}
+      </p>
+    )}
+    {akte.reopened_at && akte.status !== 'submitted' && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">An Mandant zurückgegeben</h2>
+        <p style="font-size: 14px; color: var(--ink-2); margin: 0 0 8px;">
+          Letzte Anmerkung: <em>{akte.reopen_reason}</em>
+        </p>
+        <p style="font-size: 12px; color: var(--muted); margin: 0;">
+          Mandant:in wurde per E-Mail benachrichtigt und kann nun Daten/Dokumente ergänzen und erneut absenden.
+        </p>
+      </div>
+    )}
 
     <div class="app-card" style="margin-bottom: 24px;">
       <h2 class="serif" style="font-size: 22px; margin-bottom: 12px;">Mandanten-Link</h2>
@@ -241,26 +297,110 @@ const data1 = parseStepData(stepByNo.get(1)) as {
         <p style="color: var(--muted); font-size: 14px;">Noch keine Dokumente hochgeladen.</p>
       ) : (
         <ul style="list-style: none; padding: 0; margin: 0;">
-          {files.map((f) => (
-            <li>
-              <a
-                href={`/api/akten/files/${f.id}`}
-                download={f.file_name}
-                class="file-row"
-              >
+          {files.map((f) => {
+            const ext = f.file_name.toLowerCase().split('.').pop() ?? '';
+            const previewable = ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'heif'].includes(ext);
+            return (
+              <li class="file-row">
                 <span class="file-name">
                   <span style="color: var(--gold); margin-right: 10px; font-family: var(--mono); font-size: 13px;">↓</span>
                   {f.file_name}
                 </span>
-                <span style="font-family: var(--mono); color: var(--muted); font-size: 12px;">
-                  {Math.round(f.size_bytes / 1024)} KB
+                <span style="display: flex; gap: 16px; align-items: center;">
+                  {previewable && (
+                    <button
+                      type="button"
+                      class="file-preview-btn"
+                      data-preview-url={`/api/akten/files/${f.id}?inline=1`}
+                      data-file-name={f.file_name}
+                    >Vorschau</button>
+                  )}
+                  <a
+                    href={`/api/akten/files/${f.id}`}
+                    download={f.file_name}
+                    class="file-download-link"
+                  >Download</a>
+                  <span style="font-family: var(--mono); color: var(--muted); font-size: 12px; min-width: 60px; text-align: right;">
+                    {Math.round(f.size_bytes / 1024)} KB
+                  </span>
                 </span>
-              </a>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
+
+    <div id="notizen" class="app-card" style="margin-top: 24px;">
+      <h2 class="serif" style="font-size: 22px; margin-bottom: 4px;">Interne Notizen</h2>
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
+        Nur für die Kanzlei sichtbar — Mandant:in sieht diese Notizen nicht.
+      </p>
+      <form method="post" action="/api/akten/notes/create" style="margin-bottom: 20px;">
+        <input type="hidden" name="akte_id" value={akte.id} />
+        <textarea
+          name="content"
+          required
+          maxlength="5000"
+          rows="3"
+          placeholder="Notiz hinzufügen…"
+          class="app-input"
+          style="font-family: var(--sans); resize: vertical; min-height: 70px;"
+        ></textarea>
+        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+          <button type="submit" class="cta-button cta-button--secondary">Notiz speichern</button>
+        </div>
+      </form>
+      {notes.length === 0 ? (
+        <p style="color: var(--muted); font-size: 13px; padding: 8px 0;">Noch keine Notizen.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {notes.map((n) => {
+            const isMine = n.user_id === session.user_id;
+            return (
+              <li style="border-top: 1px solid var(--rule); padding: 14px 0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+                  <span style="font-size: 12px; font-family: var(--mono); color: var(--muted);">
+                    {n.author_display_name ?? n.author_email} · {fmtDate(n.created_at)}
+                  </span>
+                  {isMine && (
+                    <form method="post" action="/api/akten/notes/delete" style="margin: 0;" onsubmit="return confirm('Notiz löschen?')">
+                      <input type="hidden" name="akte_id" value={akte.id} />
+                      <input type="hidden" name="note_id" value={n.id} />
+                      <button type="submit" style="background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 12px;" aria-label="Löschen">×</button>
+                    </form>
+                  )}
+                </div>
+                <div style="font-size: 14px; color: var(--ink); white-space: pre-wrap; line-height: 1.5;">{n.content}</div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+
+    <dialog id="preview-dialog" class="preview-dialog" onclick="if(event.target===this){this.close()}">
+      <div class="preview-header">
+        <span id="preview-name" style="font-size: 14px; color: var(--ink); font-weight: 500;"></span>
+        <button type="button" onclick="document.getElementById('preview-dialog').close()" style="background: transparent; border: 0; font-size: 24px; cursor: pointer; line-height: 1; color: var(--muted);" aria-label="Schließen">×</button>
+      </div>
+      <iframe id="preview-iframe" title="Dokument-Vorschau" style="flex: 1; border: 0; width: 100%; background: #fafaf7;"></iframe>
+    </dialog>
+
+    <script is:inline>
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.file-preview-btn');
+        if (!btn) return;
+        const url = btn.getAttribute('data-preview-url');
+        const name = btn.getAttribute('data-file-name');
+        const dlg = document.getElementById('preview-dialog');
+        const iframe = document.getElementById('preview-iframe');
+        document.getElementById('preview-name').textContent = name;
+        iframe.src = url;
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        else dlg.setAttribute('open', '');
+      });
+    </script>
   </main>
 </AppLayout>
 
@@ -301,9 +441,78 @@ const data1 = parseStepData(stepByNo.get(1)) as {
     text-decoration: none;
     transition: background 0.1s;
   }
-  .file-row:hover { background: #fafaf7; }
-  .file-row:hover .file-name { text-decoration: underline; }
-  .file-name { display: inline-flex; align-items: center; }
+  .file-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .file-name { display: inline-flex; align-items: center; flex: 1; min-width: 0; }
+  .file-preview-btn {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 6px 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .file-preview-btn:hover { background: #f5f3ee; }
+  .file-download-link {
+    color: var(--ink);
+    font-size: 12px;
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+  }
+  .file-download-link:hover { border-bottom-color: var(--ink); }
+  .preview-dialog {
+    width: min(900px, 92vw);
+    height: min(80vh, 800px);
+    padding: 0;
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-dialog[open] { display: flex; }
+  .preview-dialog::backdrop { background: rgba(15, 23, 42, 0.6); }
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .reopen-dialog {
+    width: min(540px, 92vw);
+    padding: 24px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .reopen-dialog::backdrop { background: rgba(15, 23, 42, 0.6); }
+  .cta-button {
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .cta-button--secondary {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .cta-button--secondary:hover { background: #f5f3ee; }
   .cta-button {
     display: inline-block;
     padding: 14px 20px;

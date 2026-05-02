@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { findAkteById } from '../../../lib/akten';
+import { findAkteById, setMandantContact } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { sendMandantInviteEmail } from '../../../lib/mail';
 
@@ -34,6 +34,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   try {
     await sendMandantInviteEmail(env, mandantEmail, kanzlei.display_name, inviteUrl, akte.case_label);
+    // remember the email so we can send reminders later
+    await setMandantContact(env.DB, akte.id, mandantEmail, akte.mandant_name);
   } catch (err) {
     console.error('mandant invite failed', err);
     return redirect(

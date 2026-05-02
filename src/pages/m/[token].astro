@@ -89,6 +89,19 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
       )}
     </header>
 
+    {akte.reopened_at && akte.status !== 'submitted' && akte.reopen_reason && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <span style="font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold);">Bitte um Ergänzung</span>
+        <h2 class="serif" style="font-size: 20px; margin: 8px 0;">Anmerkung der Kanzlei</h2>
+        <p style="color: var(--ink-2); font-size: 15px; line-height: 1.6; margin: 0;">
+          {akte.reopen_reason}
+        </p>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 12px;">
+          Bitte passen Sie die betroffenen Schritte an und senden Sie die Akte erneut ab.
+        </p>
+      </div>
+    )}
+
     {isSubmitted ? (
       <div class="app-card" style="text-align: center; padding: 56px 40px;">
         <span style="display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">
@@ -384,4 +397,48 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
   }
   .upload-form { display: block; }
   .upload-file-input:disabled { opacity: 0.5; cursor: progress; }
+
+  /* Mobile-Polish */
+  @media (max-width: 640px) {
+    .app-shell {
+      padding: 24px 16px;
+    }
+    .app-card {
+      padding: 20px 16px;
+    }
+    h1.serif {
+      font-size: 24px !important;
+    }
+    .step-nav ol {
+      gap: 6px !important;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .step-nav ol::-webkit-scrollbar { display: none; }
+    .step-nav a {
+      padding: 8px 12px !important;
+      font-size: 11px !important;
+      white-space: nowrap;
+    }
+    /* Tap-friendly inputs */
+    .app-input {
+      font-size: 16px !important; /* prevents iOS auto-zoom */
+      padding: 14px 14px !important;
+    }
+    /* Stack two-column grids vertically on mobile */
+    form.app-card > div[style*="grid-template-columns: 1fr 1fr"],
+    form.app-card > div[style*="grid-template-columns: 120px 1fr"] {
+      grid-template-columns: 1fr !important;
+      gap: 0 !important;
+    }
+    /* CTA full-width on mobile */
+    .cta-button {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+    }
+    .cta-button--small { width: auto; }
+  }
 </style>

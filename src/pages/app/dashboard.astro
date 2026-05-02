@@ -21,7 +21,9 @@ if (!kanzlei) {
 const url = new URL(Astro.request.url);
 const showArchived = url.searchParams.get('archived_view') === '1';
 const archivedNotice = url.searchParams.get('archived');
-const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived });
+const queryRaw = url.searchParams.get('q') ?? '';
+const query = queryRaw.trim();
+const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived, query });
 const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
 const visibleAkten = showArchived
   ? akten.filter((a) => a.status === 'archived')
@@ -96,6 +98,12 @@ const needsKanzleiSetup =
       </form>
     </div>
 
+    {url.searchParams.get('limit_error') && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {url.searchParams.get('limit_error')}
+      </p>
+    )}
+
     {needsKanzleiSetup && (
       <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
         <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Kanzlei-Daten vervollständigen</h2>
@@ -127,6 +135,11 @@ const needsKanzleiSetup =
           >Archiv</a>
         </div>
       </div>
+      <form method="get" action="/app/dashboard" style="display: flex; gap: 8px; margin-bottom: 16px;">
+        {showArchived && <input type="hidden" name="archived_view" value="1" />}
+        <input type="search" name="q" value={query} placeholder="Akte suchen — Bezeichnung, Mandant-Name oder E-Mail" class="app-input" style="flex: 1;" />
+        {query && <a href={showArchived ? '/app/dashboard?archived_view=1' : '/app/dashboard'} class="tlink" style="font-size: 13px; align-self: center;">Filter aufheben</a>}
+      </form>
       {visibleAkten.length === 0 ? (
         <p style="color: var(--muted); font-size: 14px; padding: 16px 0;">
           {showArchived ? 'Keine archivierten Akten.' : 'Noch keine Akten angelegt.'}
@@ -139,7 +152,10 @@ const needsKanzleiSetup =
             return (
               <li style="border-bottom: 1px solid var(--rule);">
                 <a href={`/app/akten/${a.id}`} class="akte-row">
-                  <span class="akte-row-title">{a.case_label ?? 'Ohne Bezeichnung'}</span>
+                  <span class="akte-row-title">
+                    {a.case_label ?? 'Ohne Bezeichnung'}
+                    {a.mandant_name && <span style="color: var(--muted); font-size: 13px; margin-left: 8px;">· {a.mandant_name}</span>}
+                  </span>
                   <span class={`status-badge status-${a.status}`}>{statusLabel(a.status)}</span>
                   <span class="akte-row-date">{tsLabel}</span>
                 </a>

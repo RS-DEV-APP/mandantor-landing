@@ -1,0 +1,148 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { findUserById, listUsersOfKanzlei } from '../../../lib/users';
+import { listAkten } from '../../../lib/akten';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const user = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !user) return Astro.redirect('/app/login', 302);
+
+const team = await listUsersOfKanzlei(env.DB, kanzlei.id);
+const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: true });
+
+const subResult = await env.DB
+  .prepare('SELECT plan, status, current_period_end, seat_count FROM subscription WHERE kanzlei_id = ?1 LIMIT 1')
+  .bind(kanzlei.id)
+  .first<{ plan: string; status: string; current_period_end: number | null; seat_count: number }>();
+
+const filesAggregate = await env.DB
+  .prepare(`SELECT COUNT(*) AS files, COALESCE(SUM(size_bytes), 0) AS bytes
+            FROM akte_file
+            JOIN akte ON akte_file.akte_id = akte.id
+            WHERE akte.kanzlei_id = ?1`)
+  .bind(kanzlei.id)
+  .first<{ files: number; bytes: number }>();
+
+const fmtBytes = (n: number) => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const planLabel = (() => {
+  switch (subResult?.plan ?? 'pilot') {
+    case 'pilot': return 'Pilot (kostenlos)';
+    case 'standard': return 'Standard';
+    case 'pro': return 'Pro';
+    default: return subResult?.plan ?? 'Pilot';
+  }
+})();
+---
+<AppLayout title="Account — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/dashboard" class="tlink">← Dashboard</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Account</span>
+      </span>
+      <h1 class="serif" style="font-size: 36px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        {kanzlei.display_name}
+      </h1>
+      <p style="font-size: 14px; color: var(--muted);">{user.email} · {user.role === 'admin' ? 'Administrator' : 'Mitglied'}</p>
+    </header>
+
+    <AccountNav active="overview" />
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
+      <div class="stat-card">
+        <span class="stat-label">Plan</span>
+        <span class="stat-value">{planLabel}</span>
+        <span class="stat-meta">
+          {subResult?.seat_count ?? 1} {(subResult?.seat_count ?? 1) === 1 ? 'Sitz' : 'Sitze'}
+          {subResult?.current_period_end && ` · bis ${new Date(subResult.current_period_end * 1000).toLocaleDateString('de-DE')}`}
+        </span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Akten gesamt</span>
+        <span class="stat-value">{akten.length}</span>
+        <span class="stat-meta">
+          {akten.filter((a) => a.status === 'submitted').length} eingereicht ·{' '}
+          {akten.filter((a) => a.status === 'archived').length} archiviert
+        </span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Team</span>
+        <span class="stat-value">{team.length}</span>
+        <span class="stat-meta">
+          {team.filter((u) => u.role === 'admin').length} Admin ·{' '}
+          {team.filter((u) => u.status === 'invited').length} eingeladen
+        </span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Speicher</span>
+        <span class="stat-value">{fmtBytes(filesAggregate?.bytes ?? 0)}</span>
+        <span class="stat-meta">{filesAggregate?.files ?? 0} Dokumente</span>
+      </div>
+    </div>
+
+    <div class="app-card">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">Schnellzugriff</h2>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="padding: 12px 0; border-bottom: 1px solid var(--rule);">
+          <a href="/app/account/team" class="tlink" style="font-size: 15px;">Team-Mitglieder verwalten →</a>
+        </li>
+        <li style="padding: 12px 0; border-bottom: 1px solid var(--rule);">
+          <a href="/app/account/billing" class="tlink" style="font-size: 15px;">Abrechnung & Rechnungen →</a>
+        </li>
+        <li style="padding: 12px 0; border-bottom: 1px solid var(--rule);">
+          <a href="/app/account/security" class="tlink" style="font-size: 15px;">Aktive Sessions & Sicherheit →</a>
+        </li>
+        <li style="padding: 12px 0;">
+          <a href="/app/settings" class="tlink" style="font-size: 15px;">Kanzlei-Einstellungen (Vorlagen, Akten-Typen) →</a>
+        </li>
+      </ul>
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .stat-card {
+    border: 1px solid var(--rule);
+    padding: 16px;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stat-value {
+    font-family: var(--serif);
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .stat-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+</style>

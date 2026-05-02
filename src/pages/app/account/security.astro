@@ -1,0 +1,103 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { listSessionsForUser } from '../../../lib/auth';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const sessions = await listSessionsForUser(env.DB, session.user_id);
+
+const url = new URL(Astro.request.url);
+const revoked = url.searchParams.get('revoked');
+const allRevoked = url.searchParams.get('all_revoked') === '1';
+
+const fmtDateTime = (ts: number) => new Date(ts * 1000).toLocaleString('de-DE');
+const sessionTtlDays = 30;
+const startApprox = (expires: number) => new Date((expires - sessionTtlDays * 86400) * 1000);
+---
+<AppLayout title="Sicherheit — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Sicherheit</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Aktive Sitzungen</h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Geräte und Browser, in denen Sie aktuell angemeldet sind.
+      </p>
+    </header>
+
+    <AccountNav active="security" />
+
+    {revoked && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Sitzung widerrufen.
+      </p>
+    )}
+    {allRevoked && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Alle anderen Sitzungen widerrufen — Sie sind hier eingeloggt.
+      </p>
+    )}
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        {sessions.map((s) => {
+          const isCurrent = s.token_hash === session.session_token_hash;
+          return (
+            <li style="border-bottom: 1px solid var(--rule); padding: 14px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="flex: 1;">
+                <div style="font-size: 15px;">
+                  {isCurrent ? (
+                    <>Diese Sitzung <span style="color: var(--gold); font-size: 12px; margin-left: 8px;">aktuell</span></>
+                  ) : 'Andere Sitzung'}
+                </div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--mono);">
+                  Gültig bis {fmtDateTime(s.expires_at)} · IP {(s.ip_hash ?? '').slice(0, 8)}… · UA {(s.ua_hash ?? '').slice(0, 8)}…
+                </div>
+              </div>
+              {!isCurrent && (
+                <form method="post" action="/api/account/security/revoke-session" style="margin: 0;">
+                  <input type="hidden" name="token_hash" value={s.token_hash} />
+                  <button type="submit" class="ghost-danger">Widerrufen</button>
+                </form>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+
+    {sessions.length > 1 && (
+      <form method="post" action="/api/account/security/revoke-all-other"
+        onsubmit="return confirm('Alle anderen Sitzungen widerrufen? Andere Geräte/Browser werden sofort abgemeldet.')"
+        style="margin: 0;">
+        <button type="submit" class="ghost-danger">Alle anderen Sitzungen abmelden</button>
+      </form>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .ghost-danger {
+    padding: 10px 16px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: #b23a3a;
+    background: var(--paper);
+    border: 1px solid #e6c5c5;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ghost-danger:hover { background: #fdf0f0; }
+</style>

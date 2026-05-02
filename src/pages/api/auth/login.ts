@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { findOrCreateKanzlei } from '../../../lib/db';
 import { createMagicLink } from '../../../lib/auth';
+import { findUserByEmail, createKanzleiAdmin } from '../../../lib/users';
 import { sendMagicLinkEmail } from '../../../lib/mail';
 
 export const prerender = false;
@@ -19,21 +20,30 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   }
 
   try {
-    const kanzlei = await findOrCreateKanzlei(env.DB, email);
-    const token = await createMagicLink(env.DB, env.SECRET_KEY, email, kanzlei.id);
+    let user = await findUserByEmail(env.DB, email);
+    let kanzleiId: string;
+    if (user) {
+      kanzleiId = user.kanzlei_id;
+    } else {
+      const kanzlei = await findOrCreateKanzlei(env.DB, email);
+      kanzleiId = kanzlei.id;
+      // Backfill safety: if a kanzlei exists from before the users-refactor and has no admin user,
+      // findUserByEmail returns null even though the kanzlei was just looked up. Create the admin.
+      const ensured = await findUserByEmail(env.DB, email);
+      if (!ensured) {
+        await createKanzleiAdmin(env.DB, kanzlei.id, email);
+      }
+    }
 
+    const token = await createMagicLink(env.DB, env.SECRET_KEY, email, kanzleiId);
     const origin = new URL(request.url).origin;
     const magicUrl = `${origin}/auth/verify?token=${encodeURIComponent(token)}`;
 
     const result = await sendMagicLinkEmail(env, email, magicUrl);
 
-    // Setup-Phase: kein Mail-Backend → direkt zum Magic-Link weiterleiten,
-    // damit Login ohne Mail testbar ist. Sobald RESEND_API_KEY oder MAILER
-    // gesetzt sind, läuft der normale „Mail versendet"-Flow.
     if (result.delivered === 'logged') {
       return redirect(magicUrl, 303);
     }
-
     return redirect('/app/login?sent=1', 303);
   } catch (err) {
     console.error('login error', err);

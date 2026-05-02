@@ -1,0 +1,161 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { findUserById, listUsersOfKanzlei, listPendingInvitations } from '../../../lib/users';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const me = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !me) return Astro.redirect('/app/login', 302);
+
+const users = await listUsersOfKanzlei(env.DB, kanzlei.id);
+const invitations = await listPendingInvitations(env.DB, kanzlei.id);
+
+const url = new URL(Astro.request.url);
+const invited = url.searchParams.get('invited');
+const error = url.searchParams.get('error');
+const removed = url.searchParams.get('removed');
+
+const isAdmin = me.role === 'admin';
+const fmt = (ts: number | null) => ts ? new Date(ts * 1000).toLocaleDateString('de-DE') : '—';
+---
+<AppLayout title="Team — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Team</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Team</h1>
+      <p style="font-size: 14px; color: var(--muted);">Verwalten Sie, wer Zugriff auf {kanzlei.display_name} hat.</p>
+    </header>
+
+    <AccountNav active="team" />
+
+    {invited && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Einladung an <strong>{invited}</strong> verschickt. Der Link ist 14 Tage gültig.
+      </p>
+    )}
+    {removed && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Mitglied <strong>{removed}</strong> entfernt.
+      </p>
+    )}
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    {isAdmin && (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Mitglied einladen</h2>
+        <form method="post" action="/api/account/team/invite" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+          <label class="app-label" style="margin: 0; flex: 2; min-width: 220px;">
+            <span class="app-label-text">E-Mail</span>
+            <input class="app-input" type="email" name="email" required placeholder="kollege@kanzlei.de" />
+          </label>
+          <label class="app-label" style="margin: 0; flex: 1; min-width: 140px;">
+            <span class="app-label-text">Rolle</span>
+            <select class="app-input" name="role">
+              <option value="member" selected>Mitglied</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </label>
+          <button type="submit" class="cta-button">Einladen</button>
+        </form>
+        <p style="font-size: 12px; color: var(--muted); margin-top: 12px;">
+          Eingeladene Personen erhalten eine E-Mail mit einem 14 Tage gültigen Link.
+        </p>
+      </div>
+    )}
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Mitglieder</h2>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        {users.map((u) => (
+          <li style="border-bottom: 1px solid var(--rule); padding: 14px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+            <div style="flex: 1;">
+              <div style="font-size: 15px;">
+                {u.display_name ?? u.email}
+                {u.id === me.id && <span style="color: var(--muted); font-size: 12px; margin-left: 8px;">(Sie)</span>}
+              </div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                {u.email} · {u.role === 'admin' ? 'Administrator' : 'Mitglied'} · seit {fmt(u.joined_at)}
+              </div>
+            </div>
+            {isAdmin && u.id !== me.id && (
+              <form method="post" action="/api/account/team/remove" onsubmit="return confirm('Mitglied entfernen? Der Zugriff wird sofort widerrufen.')" style="margin: 0;">
+                <input type="hidden" name="user_id" value={u.id} />
+                <button type="submit" class="ghost-danger">Entfernen</button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    {invitations.length > 0 && (
+      <div class="app-card">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Offene Einladungen</h2>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {invitations.map((i) => (
+            <li style="border-bottom: 1px solid var(--rule); padding: 14px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="flex: 1;">
+                <div style="font-size: 15px;">{i.email}</div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                  {i.role === 'admin' ? 'Administrator' : 'Mitglied'} · läuft ab {fmt(i.expires_at)}
+                </div>
+              </div>
+              {isAdmin && (
+                <form method="post" action="/api/account/team/revoke" style="margin: 0;">
+                  <input type="hidden" name="token_hash" value={i.token_hash} />
+                  <button type="submit" class="ghost-danger">Widerrufen</button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .ghost-danger {
+    padding: 8px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: #b23a3a;
+    background: var(--paper);
+    border: 1px solid #e6c5c5;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ghost-danger:hover { background: #fdf0f0; }
+</style>

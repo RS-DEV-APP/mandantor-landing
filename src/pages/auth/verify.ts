@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { consumeMagicLink, createSession, SESSION_COOKIE, SESSION_MAX_AGE } from '../../lib/auth';
+import { findUserByEmail, createKanzleiAdmin } from '../../lib/users';
 
 export const prerender = false;
 
@@ -22,9 +23,15 @@ export const GET: APIRoute = async ({ url, request, locals, cookies, redirect })
     );
   }
 
+  // Resolve user (may not exist yet for first-time login of an existing kanzlei migrated pre-refactor)
+  let user = await findUserByEmail(env.DB, result.email);
+  if (!user) {
+    user = await createKanzleiAdmin(env.DB, result.kanzlei_id, result.email);
+  }
+
   const ip = request.headers.get('cf-connecting-ip');
   const ua = request.headers.get('user-agent');
-  const sessionToken = await createSession(env.DB, env.SECRET_KEY, result.kanzlei_id, ip, ua);
+  const sessionToken = await createSession(env.DB, env.SECRET_KEY, user.kanzlei_id, user.id, ip, ua);
 
   cookies.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,

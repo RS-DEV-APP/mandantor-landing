@@ -1,0 +1,107 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { hashToken } from '../../lib/hash';
+import { findKanzleiById } from '../../lib/db';
+
+export const prerender = false;
+
+const env = Astro.locals.runtime?.env;
+if (!env?.DB || !env.SECRET_KEY) return new Response('Server misconfigured', { status: 500 });
+
+const url = new URL(Astro.request.url);
+const token = url.searchParams.get('token') ?? '';
+const error = url.searchParams.get('error');
+
+let invitationInfo: {
+  kanzleiName: string;
+  email: string;
+  role: string;
+} | null = null;
+let invitationError: string | null = null;
+
+if (token) {
+  const tokenHash = await hashToken(env.SECRET_KEY, token);
+  const row = await env.DB
+    .prepare('SELECT kanzlei_id, email, role, expires_at, used_at FROM user_invitation WHERE token_hash = ?1 LIMIT 1')
+    .bind(tokenHash)
+    .first<{ kanzlei_id: string; email: string; role: string; expires_at: number; used_at: number | null }>();
+  const now = Math.floor(Date.now() / 1000);
+  if (!row) invitationError = 'Einladung nicht gefunden.';
+  else if (row.used_at) invitationError = 'Diese Einladung wurde bereits verwendet.';
+  else if (row.expires_at < now) invitationError = 'Diese Einladung ist abgelaufen.';
+  else {
+    const kanzlei = await findKanzleiById(env.DB, row.kanzlei_id);
+    invitationInfo = {
+      kanzleiName: kanzlei?.display_name ?? 'Kanzlei',
+      email: row.email,
+      role: row.role,
+    };
+  }
+}
+---
+<AppLayout title="Einladung — Mandantor">
+  <main class="app-shell">
+    <div class="app-card">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Einladung</span>
+      </span>
+
+      {!token ? (
+        <p class="app-error" style="margin-top: 16px;">Kein Einladungs-Token in der URL.</p>
+      ) : invitationError ? (
+        <>
+          <h1 class="serif" style="font-size: 28px; margin: 16px 0 12px;">Einladung nicht verfügbar</h1>
+          <p class="app-error">{invitationError}</p>
+          <p style="margin-top: 24px;">
+            <a href="/app/login" class="tlink">→ Zur Anmeldung</a>
+          </p>
+        </>
+      ) : invitationInfo ? (
+        <>
+          <h1 class="serif" style="font-size: 28px; margin: 16px 0 12px; letter-spacing: -0.015em;">
+            Beitritt zu {invitationInfo.kanzleiName}
+          </h1>
+          <p style="color: var(--ink-2); font-size: 15px; line-height: 1.6;">
+            Sie wurden eingeladen, dem Mandantor-Team von <strong>{invitationInfo.kanzleiName}</strong> als
+            {' '}<strong>{invitationInfo.role === 'admin' ? 'Administrator:in' : 'Mitglied'}</strong> beizutreten.
+          </p>
+          <p style="color: var(--ink-2); font-size: 14px; margin-top: 16px;">
+            Login-E-Mail: <strong>{invitationInfo.email}</strong>
+          </p>
+
+          {error && (
+            <p class="app-error" style="margin-top: 16px;">{error}</p>
+          )}
+
+          <form method="post" action="/api/account/team/accept" style="margin-top: 32px;">
+            <input type="hidden" name="token" value={token} />
+            <button type="submit" class="cta-button">
+              Einladung annehmen & Anmelde-Link erhalten
+            </button>
+          </form>
+
+          <p style="font-size: 13px; color: var(--muted); margin-top: 16px;">
+            Nach dem Annehmen schicken wir an <strong>{invitationInfo.email}</strong> einen Anmelde-Link.
+            Klicken Sie diesen, um sich erstmalig anzumelden.
+          </p>
+        </>
+      ) : null}
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+</style>

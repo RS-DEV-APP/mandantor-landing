@@ -1,0 +1,134 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { findUserById, listUsersOfKanzlei } from '../../../lib/users';
+import { listAkten } from '../../../lib/akten';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const user = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !user) return Astro.redirect('/app/login', 302);
+
+const team = await listUsersOfKanzlei(env.DB, kanzlei.id);
+const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: true });
+
+const otherActiveAdmins = team.filter((u) => u.id !== user.id && u.role === 'admin' && u.status === 'active');
+const isLastAdmin = user.role === 'admin' && otherActiveAdmins.length === 0;
+---
+<AppLayout title="Konto löschen — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: #b23a3a;">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: #b23a3a;">Konto löschen</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        {isLastAdmin ? 'Kanzlei löschen' : 'Account verlassen'}
+      </h1>
+    </header>
+
+    <AccountNav active="danger" />
+
+    {isLastAdmin ? (
+      <>
+        <div class="danger-card" style="margin-bottom: 24px;">
+          <h2 class="serif" style="font-size: 20px; margin-bottom: 12px; color: #8a3030;">Achtung — endgültige Löschung</h2>
+          <p style="color: var(--ink-2); font-size: 15px; line-height: 1.6;">
+            Sie sind der einzige Administrator von <strong>{kanzlei.display_name}</strong>. Eine Konto-Löschung
+            entfernt die gesamte Kanzlei mit allen Daten:
+          </p>
+          <ul style="margin: 16px 0 0 24px; color: var(--ink-2); font-size: 14px; line-height: 1.8;">
+            <li><strong>{akten.length}</strong> Akten (inkl. Stammdaten, Vollmachten, Bestätigungen)</li>
+            <li>Alle hochgeladenen Dokumente in R2</li>
+            <li>Akten-Typen, Vorlagen, Honorar-Sätze</li>
+            <li>{team.length} {team.length === 1 ? 'Team-Mitglied' : 'Team-Mitglieder'} (inkl. Sie)</li>
+            <li>Aktive Anmelde-Sitzungen</li>
+            <li>Magic-Links und Einladungen</li>
+          </ul>
+          <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin-top: 16px;">
+            <strong>DSGVO-Hinweis (Art. 17):</strong> Personenbezogene Daten von Mandant:innen werden ebenfalls gelöscht.
+            Falls noch gesetzliche Aufbewahrungsfristen laufen (z.B. § 50 BRAO, § 147 AO), exportieren Sie zuvor
+            die relevanten Akten als PDF (in der jeweiligen Akte-Detail-Seite → Druckansicht).
+          </p>
+          <p style="color: #8a3030; font-size: 14px; line-height: 1.6; margin-top: 16px;">
+            <strong>Diese Aktion ist nicht umkehrbar.</strong>
+          </p>
+        </div>
+
+        <form method="post" action="/api/account/delete-kanzlei">
+          <label class="app-label">
+            <span class="app-label-text" style="color: #8a3030;">Zur Bestätigung Kanzlei-Namen exakt eintippen:</span>
+            <input
+              class="app-input"
+              type="text"
+              name="confirm_name"
+              required
+              autocomplete="off"
+              placeholder={kanzlei.display_name}
+            />
+          </label>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 24px;">
+            Erwartet: <code>{kanzlei.display_name}</code>
+          </p>
+          <button type="submit" class="danger-button">Kanzlei dauerhaft löschen</button>
+        </form>
+      </>
+    ) : (
+      <>
+        <div class="danger-card" style="margin-bottom: 24px;">
+          <h2 class="serif" style="font-size: 20px; margin-bottom: 12px; color: #8a3030;">Account verlassen</h2>
+          <p style="color: var(--ink-2); font-size: 15px; line-height: 1.6;">
+            Sie verlassen die Kanzlei <strong>{kanzlei.display_name}</strong>. Ihr Login-Zugriff wird sofort
+            entfernt, alle Ihre offenen Sitzungen werden beendet.
+          </p>
+          <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin-top: 16px;">
+            Akten, Dateien und Daten der Kanzlei <strong>bleiben erhalten</strong> — andere Administratoren
+            haben weiterhin Zugriff. Nur Ihr persönlicher User-Datensatz wird auf "entfernt" gesetzt; Ihre
+            Audit-Spuren in bereits geleisteten Aktionen werden zu Beweiszwecken nicht gelöscht.
+          </p>
+          {user.role === 'admin' && otherActiveAdmins.length > 0 && (
+            <p style="color: var(--muted); font-size: 13px; margin-top: 12px;">
+              Es gibt noch {otherActiveAdmins.length} {otherActiveAdmins.length === 1 ? 'weiteren Administrator' : 'weitere Administratoren'} ({otherActiveAdmins.map((a) => a.email).join(', ')}).
+            </p>
+          )}
+        </div>
+
+        <form method="post" action="/api/account/leave"
+          onsubmit="return confirm('Account verlassen? Sie werden sofort abgemeldet.')">
+          <button type="submit" class="danger-button">Account verlassen</button>
+        </form>
+      </>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .danger-card {
+    border: 1px solid #e6c5c5;
+    background: #fdf6f6;
+    padding: 24px;
+  }
+  .danger-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+    background: #b23a3a;
+    border: 1px solid #b23a3a;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .danger-button:hover { background: #8a3030; }
+</style>

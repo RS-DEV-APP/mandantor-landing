@@ -1,0 +1,107 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findUserById } from '../../../lib/users';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const user = await findUserById(env.DB, session.user_id);
+if (!user) return Astro.redirect('/app/login', 302);
+
+const url = new URL(Astro.request.url);
+const saved = url.searchParams.get('saved') === '1';
+
+const fmtDate = (ts: number | null) => ts ? new Date(ts * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+---
+<AppLayout title="Profil — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Profil</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Mein Profil</h1>
+    </header>
+
+    <AccountNav active="profile" />
+
+    {saved && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Profil gespeichert.
+      </p>
+    )}
+
+    <form method="post" action="/api/account/profile">
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Persönliche Daten</h2>
+
+        <label class="app-label">
+          <span class="app-label-text">Anzeigename</span>
+          <input class="app-input" type="text" name="display_name" maxlength="80" value={user.display_name ?? ''} placeholder="z. B. Dr. Anna Müller" />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Wird Team-Kolleg:innen angezeigt.
+          </span>
+        </label>
+
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">E-Mail (Login)</span>
+          <input class="app-input" type="email" value={user.email} disabled style="background: #f5f3ee; color: var(--muted);" />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Login-Adresse kann aktuell nicht geändert werden — bitte Support kontaktieren.
+          </span>
+        </label>
+      </div>
+
+      <button type="submit" class="cta-button">Speichern</button>
+    </form>
+
+    <div class="app-card" style="margin-top: 32px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Konto-Info</h2>
+      <dl style="display: grid; grid-template-columns: 200px 1fr; gap: 12px 24px; margin: 0;">
+        <dt class="meta-dt">Rolle</dt>
+        <dd class="meta-dd">{user.role === 'admin' ? 'Administrator' : 'Mitglied'}</dd>
+        <dt class="meta-dt">Status</dt>
+        <dd class="meta-dd">{user.status === 'active' ? 'Aktiv' : user.status === 'invited' ? 'Eingeladen' : 'Entfernt'}</dd>
+        <dt class="meta-dt">Account angelegt</dt>
+        <dd class="meta-dd">{fmtDate(user.created_at)}</dd>
+        <dt class="meta-dt">Beigetreten am</dt>
+        <dd class="meta-dd">{fmtDate(user.joined_at)}</dd>
+      </dl>
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .meta-dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: start;
+    padding-top: 2px;
+  }
+  .meta-dd { font-size: 14px; margin: 0; }
+</style>

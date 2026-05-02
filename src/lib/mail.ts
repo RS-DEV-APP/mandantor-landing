@@ -223,3 +223,48 @@ export async function sendMandantConfirmationEmail(
     'mandant-confirmation',
   );
 }
+
+function teamInviteBody(
+  kanzleiName: string,
+  inviterName: string,
+  inviteUrl: string,
+  role: string,
+): string {
+  const roleLabel = role === 'admin' ? 'Administrator:in' : 'Mitglied';
+  return [
+    'Hallo,',
+    '',
+    `${inviterName} hat Sie eingeladen, dem Mandantor-Konto der Kanzlei ${kanzleiName} als ${roleLabel} beizutreten.`,
+    '',
+    'Sie erhalten Zugriff auf alle Akten der Kanzlei, das Mandanten-Onboarding und je nach Rolle die Account-Verwaltung.',
+    '',
+    'Klicken Sie auf den folgenden Link, um die Einladung anzunehmen:',
+    '',
+    inviteUrl,
+    '',
+    'Der Link ist 14 Tage gültig und nur einmal verwendbar.',
+    '',
+    'Falls Sie diese Einladung nicht erwartet haben, ignorieren Sie diese E-Mail.',
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+}
+
+export async function sendTeamInviteEmail(
+  env: Env,
+  toEmail: string,
+  kanzleiName: string,
+  inviterName: string,
+  inviteUrl: string,
+  role: string,
+): Promise<{ delivered: Backend }> {
+  return sendEmail(
+    env,
+    toEmail,
+    `${kanzleiName} — Einladung ins Mandantor-Team`,
+    teamInviteBody(kanzleiName, inviterName, inviteUrl, role),
+    'team-invite',
+  );
+}

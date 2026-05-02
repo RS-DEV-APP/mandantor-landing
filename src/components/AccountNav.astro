@@ -1,0 +1,49 @@
+---
+interface Props {
+  active: 'overview' | 'profile' | 'team' | 'security' | 'billing' | 'danger';
+}
+const { active } = Astro.props;
+
+const items = [
+  { key: 'overview', href: '/app/account', label: 'Übersicht' },
+  { key: 'profile', href: '/app/account/profile', label: 'Profil' },
+  { key: 'team', href: '/app/account/team', label: 'Team' },
+  { key: 'security', href: '/app/account/security', label: 'Sicherheit' },
+  { key: 'billing', href: '/app/account/billing', label: 'Abrechnung' },
+  { key: 'danger', href: '/app/account/danger', label: 'Konto löschen' },
+];
+---
+<nav class="account-nav">
+  {items.map((it) => (
+    <a href={it.href} class={it.key === active ? 'active' : ''}>{it.label}</a>
+  ))}
+</nav>
+
+<style>
+  .account-nav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 32px;
+    padding-bottom: 0;
+  }
+  .account-nav a {
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .account-nav a:hover { color: var(--ink); }
+  .account-nav a.active {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+  .account-nav a.active:last-child { color: #b23a3a; border-bottom-color: #b23a3a; }
+</style>

@@ -1,9 +1,11 @@
 import { defineMiddleware } from 'astro:middleware';
 import { lookupSession, SESSION_COOKIE } from './lib/auth';
 import { findKanzleiById } from './lib/db';
+import { findUserById } from './lib/users';
+import { hashToken } from './lib/hash';
 
-const PUBLIC_APP_PATHS = new Set(['/app/login', '/app/login/']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/'];
+const PUBLIC_APP_PATHS = new Set(['/app/login', '/app/login/', '/app/invite', '/app/invite/']);
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/stripe/webhook'];
 
 function needsAuth(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return !PUBLIC_APP_PATHS.has(pathname);
@@ -35,7 +37,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
         : redirect('/app/login', 302);
     }
 
-    locals.session = { kanzlei_id: kanzlei.id, email: kanzlei.email };
+    const user = await findUserById(env.DB, session.user_id);
+    if (!user || user.status === 'removed' || user.kanzlei_id !== kanzlei.id) {
+      return url.pathname.startsWith('/api/')
+        ? new Response('Unauthorized', { status: 401 })
+        : redirect('/app/login', 302);
+    }
+
+    const tokenHash = cookieToken ? await hashToken(env.SECRET_KEY, cookieToken) : null;
+
+    locals.session = {
+      kanzlei_id: kanzlei.id,
+      user_id: user.id,
+      email: user.email,
+      role: user.role,
+      session_token_hash: tokenHash,
+    };
   }
 
   return next();

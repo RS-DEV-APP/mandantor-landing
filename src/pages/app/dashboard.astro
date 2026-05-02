@@ -59,7 +59,8 @@ const needsKanzleiSetup =
         </h1>
         <p style="font-size: 14px; color: var(--muted);">{kanzlei.email}</p>
       </div>
-      <div style="display: flex; gap: 12px; align-items: center;">
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <a href="/app/account" class="tlink" style="font-size: 14px;">Account</a>
         <a href="/app/settings" class="tlink" style="font-size: 14px;">Einstellungen</a>
         <form method="post" action="/api/auth/logout" style="margin: 0;">
           <button type="submit" class="btn btn-ghost">Abmelden</button>

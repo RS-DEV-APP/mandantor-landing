@@ -1,0 +1,166 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { listUsersOfKanzlei } from '../../../lib/users';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+
+const sub = await env.DB
+  .prepare('SELECT * FROM subscription WHERE kanzlei_id = ?1 LIMIT 1')
+  .bind(kanzlei.id)
+  .first<{
+    plan: string;
+    status: string;
+    current_period_end: number | null;
+    seat_count: number;
+    cancel_at_period_end: number;
+  }>();
+
+const team = await listUsersOfKanzlei(env.DB, kanzlei.id);
+const activeSeats = team.filter((u) => u.status === 'active').length;
+
+const invoicesResult = await env.DB
+  .prepare('SELECT * FROM invoice WHERE kanzlei_id = ?1 ORDER BY created_at DESC LIMIT 50')
+  .bind(kanzlei.id)
+  .all<{
+    id: string;
+    number: string | null;
+    amount_cents: number;
+    currency: string;
+    status: string;
+    invoice_pdf_url: string | null;
+    hosted_invoice_url: string | null;
+    period_start: number | null;
+    period_end: number | null;
+    created_at: number;
+  }>();
+const invoices = invoicesResult.results ?? [];
+
+const planLabel = (() => {
+  switch (sub?.plan ?? 'pilot') {
+    case 'pilot': return 'Pilot';
+    case 'standard': return 'Standard';
+    case 'pro': return 'Pro';
+    default: return sub?.plan ?? 'Pilot';
+  }
+})();
+
+const isPilot = (sub?.plan ?? 'pilot') === 'pilot';
+
+const fmtMoney = (cents: number, currency: string) => {
+  const value = (cents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${value} ${currency}`;
+};
+
+const fmtDate = (ts: number | null) => ts ? new Date(ts * 1000).toLocaleDateString('de-DE') : '—';
+---
+<AppLayout title="Abrechnung — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Abrechnung</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Abrechnung & Rechnungen</h1>
+    </header>
+
+    <AccountNav active="billing" />
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Aktueller Plan</h2>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 12px 24px;">
+        <span class="meta-dt">Plan</span>
+        <span class="meta-dd">
+          <strong>{planLabel}</strong>
+          {isPilot && <span style="font-size: 12px; color: var(--gold); margin-left: 8px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em;">kostenlos</span>}
+        </span>
+        <span class="meta-dt">Status</span>
+        <span class="meta-dd">{sub?.status ?? 'pilot'}</span>
+        <span class="meta-dt">Aktive Sitze</span>
+        <span class="meta-dd">{activeSeats} (im Plan: {sub?.seat_count ?? 1})</span>
+        {sub?.current_period_end && (
+          <>
+            <span class="meta-dt">Laufzeit bis</span>
+            <span class="meta-dd">{fmtDate(sub.current_period_end)}{sub?.cancel_at_period_end ? ' — Kündigung zum Ende' : ''}</span>
+          </>
+        )}
+      </div>
+    </div>
+
+    {isPilot && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Pilot-Phase</h2>
+        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0;">
+          Während der Pilot-Phase ist die Nutzung kostenlos. Nach Pilot-Ende stellen wir auf einen
+          Standard-Tarif um (geplant: 29 €/Monat pro Anwalt). Die Bezahlung läuft dann über Stripe; aktuelle
+          Rechnungen sind hier sichtbar, sobald die Bezahlfunktion aktiviert ist.
+        </p>
+      </div>
+    )}
+
+    <div class="app-card">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Rechnungen</h2>
+      {invoices.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px;">Noch keine Rechnungen vorhanden.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {invoices.map((inv) => (
+            <li style="border-bottom: 1px solid var(--rule); padding: 14px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="flex: 1;">
+                <div style="font-size: 14px;">
+                  {inv.number ?? inv.id.slice(0, 8)} · {fmtMoney(inv.amount_cents, inv.currency)}
+                  <span class={`status-pill status-${inv.status}`}>{inv.status}</span>
+                </div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                  {fmtDate(inv.period_start)} – {fmtDate(inv.period_end)}
+                </div>
+              </div>
+              {inv.invoice_pdf_url && (
+                <a href={inv.invoice_pdf_url} class="tlink" style="font-size: 13px;" target="_blank" rel="noopener">PDF →</a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .meta-dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: start;
+    padding-top: 2px;
+  }
+  .meta-dd { font-size: 14px; }
+  .status-pill {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .status-paid { background: #e6f4ea; color: #1a6d2c; }
+  .status-open { background: #fef7e6; color: #8a6d1a; }
+  .status-draft { background: #f0f0f0; color: #555; }
+  .status-void, .status-uncollectible { background: #fdf0f0; color: #8a3030; }
+</style>

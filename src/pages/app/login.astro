@@ -5,6 +5,8 @@ export const prerender = false;
 
 const url = new URL(Astro.request.url);
 const sent = url.searchParams.get('sent') === '1';
+const invited = url.searchParams.get('invited') === '1';
+const left = url.searchParams.get('left') === '1';
 const error = url.searchParams.get('error');
 ---
 <AppLayout title="Anmelden — Mandantor">
@@ -22,6 +24,18 @@ const error = url.searchParams.get('error');
         Wir schicken einen einmaligen Link an Ihre Kanzlei-E-Mail-Adresse.
         Kein Passwort.
       </p>
+
+      {invited && !sent && (
+        <p class="app-success" style="margin-top: 24px; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+          ✓ Einladung angenommen. Wir haben Ihnen einen Anmelde-Link an Ihre E-Mail-Adresse geschickt.
+        </p>
+      )}
+
+      {left && !sent && (
+        <p style="margin-top: 24px; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px; color: var(--ink-2);">
+          Sie haben den Account verlassen. Bei Bedarf können Sie sich jederzeit mit einer neuen E-Mail-Adresse neu registrieren.
+        </p>
+      )}
 
       {sent ? (
         <div class="app-success" style="margin-top: 32px;">

@@ -84,7 +84,7 @@ const eventLabel = (type: string) => {
       ) : (
         <ul style="list-style: none; padding: 0; margin: 0;">
           {entries.map((e) => {
-            let payload: Record<string, unknown> = {};
+            let payload = {} as Record<string, unknown>;
             try { payload = JSON.parse(e.payload_json || '{}'); } catch {}
             const payloadParts = Object.entries(payload).map(([k, v]) =>
               `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`

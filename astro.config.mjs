@@ -12,4 +12,13 @@ export default defineConfig({
   build: {
     inlineStylesheets: 'auto',
   },
+  vite: {
+    // pdf-lib uses Node-style Buffer indirectly. With nodejs_compat enabled
+    // on the Cloudflare Pages project, this just needs to not be tree-shaken
+    // into a broken state. ssr.noExternal forces bundling so the polyfill
+    // resolution works.
+    ssr: {
+      noExternal: ['pdf-lib'],
+    },
+  },
 });

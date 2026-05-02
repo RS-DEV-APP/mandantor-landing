@@ -9,7 +9,12 @@ const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/strip
 
 function needsAuth(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return !PUBLIC_APP_PATHS.has(pathname);
-  if (pathname.startsWith('/api/')) return !PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
+  if (pathname.startsWith('/api/')) {
+    if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return false;
+    // /api/kanzlei/<id>/logo is public so the mandant wizard can show the kanzlei logo
+    if (/^\/api\/kanzlei\/[^/]+\/logo$/.test(pathname)) return false;
+    return true;
+  }
   return false;
 }
 

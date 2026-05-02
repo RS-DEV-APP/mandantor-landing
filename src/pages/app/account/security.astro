@@ -2,6 +2,7 @@
 import AppLayout from '../../../layouts/AppLayout.astro';
 import AccountNav from '../../../components/AccountNav.astro';
 import { listSessionsForUser } from '../../../lib/auth';
+import { findUserById } from '../../../lib/users';
 
 export const prerender = false;
 
@@ -11,6 +12,8 @@ if (!session) return Astro.redirect('/app/login', 302);
 if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
 
 const sessions = await listSessionsForUser(env.DB, session.user_id);
+const user = await findUserById(env.DB, session.user_id);
+const totpActive = !!user?.totp_secret;
 
 const url = new URL(Astro.request.url);
 const revoked = url.searchParams.get('revoked');
@@ -38,6 +41,23 @@ const startApprox = (expires: number) => new Date((expires - sessionTtlDays * 86
     </header>
 
     <AccountNav active="security" />
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 8px;">
+        <h2 class="serif" style="font-size: 20px; margin: 0;">Zwei-Faktor-Authentifizierung</h2>
+        <span class={`status-badge ${totpActive ? 'status-active' : 'status-inactive'}`}>
+          {totpActive ? '✓ aktiv' : '— inaktiv'}
+        </span>
+      </div>
+      <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin-bottom: 12px;">
+        {totpActive
+          ? 'Bei jedem Login wird zusätzlich zum Magic-Link ein 6-stelliger Code aus Ihrer Authenticator-App abgefragt.'
+          : 'Empfohlen für jeden Anwalt-Account — schützt vor unbefugtem Zugriff bei kompromittiertem Mail-Postfach.'}
+      </p>
+      <a href="/app/account/security/2fa" class="tlink" style="font-size: 14px;">
+        {totpActive ? 'Verwalten →' : '2FA einrichten →'}
+      </a>
+    </div>
 
     {revoked && (
       <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
@@ -100,4 +120,15 @@ const startApprox = (expires: number) => new Date((expires - sessionTtlDays * 86
     cursor: pointer;
   }
   .ghost-danger:hover { background: #fdf0f0; }
+  .status-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .status-active { background: #e6f4ea; color: #1a6d2c; }
+  .status-inactive { background: #f5f3ee; color: #555; }
 </style>

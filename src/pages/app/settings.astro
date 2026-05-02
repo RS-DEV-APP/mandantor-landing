@@ -47,6 +47,11 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
         ✓ Einstellungen gespeichert.
       </p>
     )}
+    {url.searchParams.get('branded') === '1' && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Branding aktualisiert.
+      </p>
+    )}
     {savedTyp && (
       <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
         ✓ Akten-Typ <strong>{savedTyp}</strong> gespeichert.
@@ -145,6 +150,57 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
       </div>
 
       <button type="submit" class="cta-button">Speichern</button>
+    </form>
+
+    <form method="post" action="/api/kanzlei/branding" enctype="multipart/form-data" style="margin-top: 40px;">
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Branding</h2>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+          Eigenes Logo und eine Akzent-Farbe für das Mandanten-Onboarding (sichtbar auf <code>/m/...</code>-Seiten).
+          Die Anwalt-Sicht und Mandantor-Marketing-Seiten bleiben unverändert.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: flex-start;">
+          <div>
+            <span class="app-label-text" style="display: block; margin-bottom: 8px;">Aktuell</span>
+            {kanzlei.logo_r2_key ? (
+              <div style="border: 1px solid var(--rule); padding: 16px; background: #fff; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+                <img src={`/api/kanzlei/${kanzlei.id}/logo?v=${kanzlei.created_at}`} alt="Logo" style="max-width: 160px; max-height: 80px;" />
+              </div>
+            ) : (
+              <div style="border: 1px dashed var(--rule); padding: 24px; color: var(--muted); font-size: 13px; text-align: center;">
+                Kein Logo
+              </div>
+            )}
+          </div>
+          <div>
+            <label class="app-label">
+              <span class="app-label-text">Logo hochladen</span>
+              <input class="app-input" type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+              <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                PNG, JPG, SVG oder WebP · max. 200 KB · empfohlen ~400×120px
+              </span>
+            </label>
+
+            {kanzlei.logo_r2_key && (
+              <label style="display: flex; gap: 8px; align-items: center; margin: 12px 0; font-size: 13px; color: var(--ink-2);">
+                <input type="checkbox" name="remove_logo" value="1" />
+                Logo entfernen
+              </label>
+            )}
+          </div>
+        </div>
+
+        <label class="app-label" style="margin-top: 24px;">
+          <span class="app-label-text">Akzent-Farbe (Hex)</span>
+          <input class="app-input" type="text" name="brand_color" value={kanzlei.brand_color ?? ''} placeholder="#B8956A" pattern="#[0-9a-fA-F]{6}" maxlength="7" style="font-family: var(--mono); width: 160px;" />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Wird als Akzent (Linien, Hervorhebungen) im Mandant-Wizard verwendet. Leer lassen für Standard.
+          </span>
+        </label>
+
+        <button type="submit" class="cta-button" style="margin-top: 16px;">Branding speichern</button>
+      </div>
     </form>
 
     <div class="app-card" style="margin-top: 40px; margin-bottom: 24px;">

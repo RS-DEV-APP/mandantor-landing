@@ -1,0 +1,180 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import AccountNav from '../../../../components/AccountNav.astro';
+import { findUserById } from '../../../../lib/users';
+import { generateTotpSecret, buildOtpauthUri } from '../../../../lib/totp';
+// @ts-ignore - qrcode-svg has no type defs but is build-time only
+import QRCode from 'qrcode-svg';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const user = await findUserById(env.DB, session.user_id);
+if (!user) return Astro.redirect('/app/login', 302);
+
+const url = new URL(Astro.request.url);
+const error = url.searchParams.get('error');
+const enabled = !!user.totp_secret;
+const justEnabled = url.searchParams.get('enabled') === '1';
+const newRecoveryCodes = url.searchParams.getAll('rc');
+
+// Wenn aktuell Setup läuft (also kein TOTP aktiv) → frisches Secret + QR generieren.
+// Secret wird im Form als Hidden-Field mitgegeben, damit Reload kein neues Secret erzeugt.
+const candidateSecret = !enabled
+  ? (url.searchParams.get('s') ?? generateTotpSecret())
+  : null;
+
+let qrSvg: string | null = null;
+let otpauthUri: string | null = null;
+if (candidateSecret) {
+  otpauthUri = buildOtpauthUri(candidateSecret, user.email);
+  try {
+    qrSvg = new QRCode({
+      content: otpauthUri,
+      padding: 2,
+      width: 220,
+      height: 220,
+      color: '#0F172A',
+      background: '#ffffff',
+      ecl: 'M',
+      join: true,
+    }).svg();
+  } catch (err) {
+    qrSvg = null;
+  }
+}
+---
+<AppLayout title="2-Faktor-Authentifizierung — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account/security" class="tlink">← Sicherheit</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">2-Faktor</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        Zwei-Faktor-Authentifizierung
+      </h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Schützt Ihren Mandantor-Login zusätzlich zur Magic-Link-E-Mail.
+      </p>
+    </header>
+
+    <AccountNav active="security" />
+
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">{error}</p>
+    )}
+
+    {justEnabled && newRecoveryCodes.length > 0 && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <h2 class="serif" style="font-size: 20px; margin: 0 0 12px;">Recovery-Codes — JETZT speichern</h2>
+        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6;">
+          Bewahren Sie diese Codes an einem sicheren Ort auf (Passwort-Manager, ausgedruckt im Tresor).
+          Falls Ihre Authenticator-App verloren geht, können Sie sich damit einmalig anmelden — jeder Code ist nur einmal verwendbar.
+          <strong>Sie sehen diese Liste nur jetzt.</strong>
+        </p>
+        <div style="font-family: var(--mono); font-size: 14px; padding: 16px; background: var(--paper); border: 1px solid var(--rule); margin-top: 16px; line-height: 1.8; user-select: all;">
+          {newRecoveryCodes.map((c) => <div>{c}</div>)}
+        </div>
+      </div>
+    )}
+
+    {enabled ? (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">2FA ist aktiv</h2>
+        <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+          Aktiv seit {user.totp_enabled_at ? new Date(user.totp_enabled_at * 1000).toLocaleDateString('de-DE') : '—'}.
+          Bei jedem Login werden Sie nach Magic-Link auch nach einem 6-stelligen Code gefragt.
+        </p>
+        <form method="post" action="/api/account/security/2fa/disable"
+          onsubmit="return confirm('2FA wirklich deaktivieren? Ihr Konto wird nur noch mit Magic-Link geschützt.')">
+          <label class="app-label">
+            <span class="app-label-text">Aktueller Code aus Authenticator-App (Bestätigung)</span>
+            <input class="app-input" type="text" name="code" required pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" />
+          </label>
+          <button type="submit" class="ghost-danger">2FA deaktivieren</button>
+        </form>
+      </div>
+    ) : (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">2FA einrichten</h2>
+        <ol style="font-size: 14px; line-height: 1.8; color: var(--ink-2); margin-bottom: 24px; padding-left: 20px;">
+          <li>Öffnen Sie eine Authenticator-App (z.B. Google Authenticator, 1Password, Bitwarden, Authy).</li>
+          <li>Scannen Sie den QR-Code oder fügen Sie das Secret manuell hinzu.</li>
+          <li>Geben Sie den ersten generierten Code unten ein.</li>
+        </ol>
+
+        <div style="display: grid; grid-template-columns: 240px 1fr; gap: 32px; align-items: flex-start;">
+          {qrSvg ? (
+            <div style="background: #fff; padding: 12px; border: 1px solid var(--rule); display: inline-block;" set:html={qrSvg}></div>
+          ) : (
+            <div style="padding: 24px; border: 1px solid var(--rule); color: var(--muted); font-size: 13px;">QR-Code konnte nicht generiert werden.</div>
+          )}
+          <div>
+            <label class="app-label">
+              <span class="app-label-text">Manuell hinzufügen — Secret</span>
+              <input class="app-input" readonly value={candidateSecret} style="font-family: var(--mono); font-size: 13px; user-select: all;" onclick="this.select()" />
+            </label>
+            <p style="font-size: 12px; color: var(--muted); margin-bottom: 0;">
+              Algorithmus SHA-1 · 6 Ziffern · 30s · Aussteller „Mandantor"
+            </p>
+          </div>
+        </div>
+
+        <form method="post" action="/api/account/security/2fa/enable" style="margin-top: 32px;">
+          <input type="hidden" name="secret" value={candidateSecret} />
+          <label class="app-label">
+            <span class="app-label-text">Bestätigungscode aus Ihrer App</span>
+            <input
+              class="app-input"
+              type="text"
+              name="code"
+              required
+              pattern="[0-9]{6}"
+              maxlength="6"
+              autocomplete="one-time-code"
+              inputmode="numeric"
+              placeholder="123 456"
+              style="font-family: var(--mono); font-size: 18px; letter-spacing: 0.1em; text-align: center;"
+            />
+          </label>
+          <button type="submit" class="cta-button">2FA aktivieren</button>
+        </form>
+      </div>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .ghost-danger {
+    padding: 10px 16px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: #b23a3a;
+    background: var(--paper);
+    border: 1px solid #e6c5c5;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ghost-danger:hover { background: #fdf0f0; }
+</style>

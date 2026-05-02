@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { createAkte } from '../../../lib/akten';
+import { createAkte, setMandantContact } from '../../../lib/akten';
 import { findAktenTypById } from '../../../lib/akten_typ';
 import { getSubscription, countActiveAkten } from '../../../lib/subscription';
 import { PLAN_LIMITS } from '../../../lib/stripe';
@@ -32,7 +32,33 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const formData = await request.formData();
   const caseLabel = ((formData.get('case_label') ?? '').toString().trim() || null);
+  const mandantEmail = ((formData.get('mandant_email') ?? '').toString().trim().toLowerCase() || null);
+  const mandantName = ((formData.get('mandant_name') ?? '').toString().trim() || null);
   const aktenTypIdRaw = (formData.get('akten_typ_id') ?? '').toString().trim();
+  const confirmConflict = (formData.get('confirm_conflict') ?? '').toString() === '1';
+
+  // Conflict-Check (nur wenn Email oder Name gesetzt UND nicht explizit bestätigt)
+  if (!confirmConflict && (mandantEmail || mandantName)) {
+    const conflict = await env.DB
+      .prepare(
+        `SELECT id, case_label FROM akte
+         WHERE kanzlei_id = ?1 AND status != 'archived'
+           AND ((?2 IS NOT NULL AND mandant_email = ?2) OR (?3 IS NOT NULL AND mandant_name = ?3))
+         LIMIT 1`,
+      )
+      .bind(session.kanzlei_id, mandantEmail, mandantName)
+      .first<{ id: string; case_label: string | null }>();
+    if (conflict) {
+      const params = new URLSearchParams();
+      params.set('conflict_id', conflict.id);
+      params.set('conflict_label', conflict.case_label ?? 'Ohne Bezeichnung');
+      if (caseLabel) params.set('case_label', caseLabel);
+      if (mandantEmail) params.set('mandant_email', mandantEmail);
+      if (mandantName) params.set('mandant_name', mandantName);
+      if (aktenTypIdRaw) params.set('akten_typ_id', aktenTypIdRaw);
+      return redirect('/app/dashboard?' + params.toString(), 303);
+    }
+  }
 
   let aktenTypId: string | null = null;
   if (aktenTypIdRaw) {
@@ -41,5 +67,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   }
 
   const akte = await createAkte(env.DB, session.kanzlei_id, caseLabel, aktenTypId);
+  if (mandantEmail || mandantName) {
+    await setMandantContact(env.DB, akte.id, mandantEmail, mandantName);
+  }
   return redirect(`/app/akten/${akte.id}`, 303);
 };

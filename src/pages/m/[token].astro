@@ -72,21 +72,26 @@ const baseTitle = akte.case_label ?? 'Mandanten-Onboarding';
 const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nachname}` : '';
 ---
 <AppLayout title={`${baseTitle} — ${kanzlei.display_name}`}>
+  {kanzlei.brand_color && (
+    <style set:html={`:root { --gold: ${kanzlei.brand_color}; }`}></style>
+  )}
   <main class="app-shell" style="max-width: 720px;">
 
     <header style="margin-bottom: 32px;">
-      <span class="marker">
-        <span class="pilcrow" style="color: var(--gold);">§</span>
-        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">{kanzlei.display_name}</span>
-      </span>
+      {kanzlei.logo_r2_key ? (
+        <img src={`/api/kanzlei/${kanzlei.id}/logo`} alt={kanzlei.display_name} style="max-height: 60px; max-width: 220px; margin-bottom: 16px;" />
+      ) : (
+        <span class="marker">
+          <span class="pilcrow" style="color: var(--gold);">§</span>
+          <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">{kanzlei.display_name}</span>
+        </span>
+      )}
       <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
         Mandanten-Onboarding
       </h1>
-      {(akte.case_label || aktenTyp) && (
-        <p style="font-size: 15px; color: var(--muted); margin-top: 4px;">
-          {[aktenTyp?.name, akte.case_label].filter(Boolean).join(' · ')}
-        </p>
-      )}
+      <p style="font-size: 15px; color: var(--muted); margin-top: 4px;">
+        {[kanzlei.logo_r2_key ? kanzlei.display_name : null, aktenTyp?.name, akte.case_label].filter(Boolean).join(' · ')}
+      </p>
     </header>
 
     {akte.reopened_at && akte.status !== 'submitted' && akte.reopen_reason && (

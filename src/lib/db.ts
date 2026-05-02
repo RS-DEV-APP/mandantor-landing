@@ -8,8 +8,28 @@ export type Kanzlei = {
   vollmacht_template: string | null;
   honorar_hourly: string | null;
   honorar_advance: string | null;
+  logo_r2_key: string | null;
+  logo_mime_type: string | null;
+  brand_color: string | null;
   created_at: number;
 };
+
+export async function setKanzleiBranding(
+  db: D1Database,
+  kanzleiId: string,
+  patch: { logo_r2_key?: string | null; logo_mime_type?: string | null; brand_color?: string | null },
+): Promise<void> {
+  // Build dynamic UPDATE based on provided fields
+  const sets: string[] = [];
+  const binds: unknown[] = [];
+  let i = 1;
+  if (patch.logo_r2_key !== undefined) { sets.push(`logo_r2_key = ?${i++}`); binds.push(patch.logo_r2_key); }
+  if (patch.logo_mime_type !== undefined) { sets.push(`logo_mime_type = ?${i++}`); binds.push(patch.logo_mime_type); }
+  if (patch.brand_color !== undefined) { sets.push(`brand_color = ?${i++}`); binds.push(patch.brand_color); }
+  if (sets.length === 0) return;
+  binds.push(kanzleiId);
+  await db.prepare(`UPDATE kanzlei SET ${sets.join(', ')} WHERE id = ?${i}`).bind(...binds).run();
+}
 
 export async function findKanzleiByEmail(db: D1Database, email: string): Promise<Kanzlei | null> {
   const row = await db

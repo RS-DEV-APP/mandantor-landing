@@ -15,7 +15,53 @@ export type KanzleiUser = {
   invited_at: number | null;
   joined_at: number | null;
   created_at: number;
+  totp_secret: string | null;
+  totp_enabled_at: number | null;
+  recovery_codes_json: string | null;
 };
+
+export async function setUserTotp(
+  db: D1Database,
+  userId: string,
+  totpSecret: string | null,
+  recoveryCodesHashed: string[] | null,
+): Promise<void> {
+  const now = totpSecret ? Math.floor(Date.now() / 1000) : null;
+  await db
+    .prepare(
+      `UPDATE kanzlei_user
+       SET totp_secret = ?1, totp_enabled_at = ?2, recovery_codes_json = ?3
+       WHERE id = ?4`,
+    )
+    .bind(
+      totpSecret,
+      now,
+      recoveryCodesHashed ? JSON.stringify(recoveryCodesHashed) : null,
+      userId,
+    )
+    .run();
+}
+
+export async function consumeRecoveryCode(
+  db: D1Database,
+  userId: string,
+  hashedCode: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT recovery_codes_json FROM kanzlei_user WHERE id = ?1 LIMIT 1')
+    .bind(userId)
+    .first<{ recovery_codes_json: string | null }>();
+  if (!row?.recovery_codes_json) return false;
+  let arr: string[] = [];
+  try { arr = JSON.parse(row.recovery_codes_json); } catch { return false; }
+  if (!arr.includes(hashedCode)) return false;
+  const remaining = arr.filter((h) => h !== hashedCode);
+  await db
+    .prepare('UPDATE kanzlei_user SET recovery_codes_json = ?1 WHERE id = ?2')
+    .bind(JSON.stringify(remaining), userId)
+    .run();
+  return true;
+}
 
 export async function findUserByEmail(db: D1Database, email: string): Promise<KanzleiUser | null> {
   const row = await db

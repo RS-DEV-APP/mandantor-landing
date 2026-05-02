@@ -95,6 +95,9 @@ const data1 = parseStepData(stepByNo.get(1)) as {
         <summary class="akte-menu-trigger" aria-label="Aktionen">⋯</summary>
         <div class="akte-menu-panel">
           <a class="akte-menu-item" href={`/app/akten/${akte.id}/print`}>Druckansicht / PDF</a>
+          {files.length > 0 && (
+            <a class="akte-menu-item" href={`/api/akten/${akte.id}/zip`} download>Alle Dokumente als ZIP</a>
+          )}
           <button
             type="button"
             class="akte-menu-item"

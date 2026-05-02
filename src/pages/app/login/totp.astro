@@ -1,0 +1,79 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import { lookupPending2fa, PENDING_2FA_COOKIE } from '../../../lib/pending2fa';
+
+export const prerender = false;
+
+const env = Astro.locals.runtime?.env;
+if (!env?.DB || !env.SECRET_KEY) return new Response('Server misconfigured', { status: 500 });
+
+const pendingToken = Astro.cookies.get(PENDING_2FA_COOKIE)?.value;
+const pending = await lookupPending2fa(env.DB, env.SECRET_KEY, pendingToken);
+if (!pending) return Astro.redirect('/app/login', 302);
+
+const url = new URL(Astro.request.url);
+const error = url.searchParams.get('error');
+---
+<AppLayout title="Bestätigung — Mandantor">
+  <main class="app-shell">
+    <div class="app-card" style="max-width: 480px; margin: 0 auto;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">2-Faktor</span>
+      </span>
+      <h1 class="serif" style="font-size: 28px; margin: 16px 0 8px; letter-spacing: -0.015em;">
+        Bestätigungscode eingeben
+      </h1>
+      <p style="color: var(--ink-2); font-size: 15px; line-height: 1.6;">
+        Öffnen Sie Ihre Authenticator-App und geben Sie den 6-stelligen Code ein.
+        Falls Sie keinen Zugriff haben, nutzen Sie einen Recovery-Code.
+      </p>
+
+      {error && (
+        <p class="app-error" style="margin-top: 16px; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+          {error}
+        </p>
+      )}
+
+      <form method="post" action="/api/auth/totp" style="margin-top: 24px;">
+        <label class="app-label">
+          <span class="app-label-text">Code (6 Ziffern oder Recovery-Code)</span>
+          <input
+            class="app-input"
+            type="text"
+            name="code"
+            required
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            pattern="[0-9a-z\-]*"
+            autofocus
+            placeholder="123 456"
+            style="font-family: var(--mono); letter-spacing: 0.1em; text-align: center; font-size: 18px;"
+          />
+        </label>
+        <button type="submit" class="cta-button" style="width: 100%; margin-top: 12px;">
+          Bestätigen
+        </button>
+      </form>
+
+      <p style="margin-top: 24px; font-size: 13px; color: var(--muted);">
+        <a href="/app/login" class="tlink">← Anders anmelden</a>
+      </p>
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+</style>

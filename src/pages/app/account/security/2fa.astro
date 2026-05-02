@@ -3,8 +3,8 @@ import AppLayout from '../../../../layouts/AppLayout.astro';
 import AccountNav from '../../../../components/AccountNav.astro';
 import { findUserById } from '../../../../lib/users';
 import { generateTotpSecret, buildOtpauthUri } from '../../../../lib/totp';
-// @ts-ignore - qrcode-svg has no type defs but is build-time only
-import QRCode from 'qrcode-svg';
+// @ts-ignore - qrcode-generator has no .d.ts shipped
+import qrcode from 'qrcode-generator';
 
 export const prerender = false;
 
@@ -33,16 +33,23 @@ let otpauthUri: string | null = null;
 if (candidateSecret) {
   otpauthUri = buildOtpauthUri(candidateSecret, user.email);
   try {
-    qrSvg = new QRCode({
-      content: otpauthUri,
-      padding: 2,
-      width: 220,
-      height: 220,
-      color: '#0F172A',
-      background: '#ffffff',
-      ecl: 'M',
-      join: true,
-    }).svg();
+    // qrcode-generator: type-number 0 = auto, error-correction 'M'
+    const qr = qrcode(0, 'M');
+    qr.addData(otpauthUri);
+    qr.make();
+    const cellSize = 5;
+    const margin = 2 * cellSize;
+    const moduleCount = qr.getModuleCount();
+    const size = moduleCount * cellSize + margin * 2;
+    let cells = '';
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (qr.isDark(row, col)) {
+          cells += `<rect x="${col * cellSize + margin}" y="${row * cellSize + margin}" width="${cellSize}" height="${cellSize}" />`;
+        }
+      }
+    }
+    qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="220" height="220"><rect width="${size}" height="${size}" fill="#ffffff"/><g fill="#0F172A">${cells}</g></svg>`;
   } catch (err) {
     qrSvg = null;
   }

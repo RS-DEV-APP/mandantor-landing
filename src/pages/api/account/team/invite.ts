@@ -9,6 +9,7 @@ import {
 import { sendTeamInviteEmail } from '../../../../lib/mail';
 import { getSubscription, countActiveSeats } from '../../../../lib/subscription';
 import { PLAN_LIMITS } from '../../../../lib/stripe';
+import { appendAudit, buildAuditContext } from '../../../../lib/audit';
 
 export const prerender = false;
 
@@ -77,6 +78,12 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     console.error('team invite mail failed', err);
     return redirect('/app/account/team?error=' + encodeURIComponent('Versand fehlgeschlagen — bitte erneut versuchen'), 303);
   }
+
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: 'team.invited',
+    subjectType: 'kanzlei_user',
+    payload: { email, role },
+  });
 
   return redirect('/app/account/team?invited=' + encodeURIComponent(email), 303);
 };

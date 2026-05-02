@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { findUserById, setUserTotp } from '../../../../../lib/users';
 import { verifyTotp } from '../../../../../lib/totp';
+import { appendAudit, buildAuditContext } from '../../../../../lib/audit';
 
 export const prerender = false;
 
@@ -23,5 +24,10 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   }
 
   await setUserTotp(env.DB, user.id, null, null);
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: '2fa.disabled',
+    subjectType: 'kanzlei_user',
+    subjectId: user.id,
+  });
   return redirect('/app/account/security/2fa?error=' + encodeURIComponent('2FA wurde deaktiviert'), 303);
 };

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { findAkteById, renameAkte } from '../../../lib/akten';
+import { appendAudit, buildAuditContext } from '../../../lib/audit';
 
 export const prerender = false;
 
@@ -19,5 +20,11 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   if (!akte) return new Response('Nicht gefunden', { status: 404 });
 
   await renameAkte(env.DB, session.kanzlei_id, akteId, newLabel || null);
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: 'akte.renamed',
+    subjectType: 'akte',
+    subjectId: akteId,
+    payload: { old_label: akte.case_label, new_label: newLabel || null },
+  });
   return redirect(`/app/akten/${akteId}`, 303);
 };

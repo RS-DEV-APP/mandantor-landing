@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { findAkteById, reopenAkte } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { sendReopenRequestEmail } from '../../../lib/mail';
+import { appendAudit, buildAuditContext } from '../../../lib/audit';
 
 export const prerender = false;
 
@@ -22,6 +23,12 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   }
 
   await reopenAkte(env.DB, session.kanzlei_id, akteId, reason);
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: 'akte.reopened',
+    subjectType: 'akte',
+    subjectId: akteId,
+    payload: { reason, case_label: akte.case_label },
+  });
 
   if (akte.mandant_email) {
     try {

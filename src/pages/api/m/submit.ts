@@ -3,6 +3,7 @@ import { findAkteByMandantToken } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { listSteps, listFiles, markSubmitted, saveStep } from '../../../lib/mandant';
 import { sendSubmissionNotificationEmail, sendMandantConfirmationEmail } from '../../../lib/mail';
+import { appendAudit } from '../../../lib/audit';
 
 export const prerender = false;
 
@@ -54,6 +55,18 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const ua = request.headers.get('user-agent');
   await saveStep(env.DB, env.SECRET_KEY, akte.id, 5, { file_count: files.length }, ip, ua);
   await markSubmitted(env.DB, akte.id);
+
+  await appendAudit(env.DB, env.SECRET_KEY, akte.kanzlei_id, {
+    actorUserId: null,
+    actorEmail: null,
+    ip,
+    ua,
+  }, {
+    eventType: 'akte.submitted',
+    subjectType: 'akte',
+    subjectId: akte.id,
+    payload: { case_label: akte.case_label, file_count: files.length },
+  });
 
   // Mail-Versand: Fehler nicht propagieren, Submit war ja erfolgreich.
   const mandantData = extractStep1(steps);

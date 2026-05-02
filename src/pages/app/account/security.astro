@@ -59,6 +59,14 @@ const startApprox = (expires: number) => new Date((expires - sessionTtlDays * 86
       </a>
     </div>
 
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 8px;">Audit-Log</h2>
+      <p style="color: var(--ink-2); font-size: 14px; line-height: 1.6; margin-bottom: 12px;">
+        Append-only Protokoll aller Mutationen mit Hash-Chain. Forensisch nachvollziehbar — Manipulation ist erkennbar.
+      </p>
+      <a href="/app/account/security/audit" class="tlink" style="font-size: 14px;">Audit-Log öffnen →</a>
+    </div>
+
     {revoked && (
       <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
         Sitzung widerrufen.

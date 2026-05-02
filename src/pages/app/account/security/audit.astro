@@ -1,0 +1,136 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import AccountNav from '../../../../components/AccountNav.astro';
+import { listAuditEntries, verifyChain } from '../../../../lib/audit';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB || !env.SECRET_KEY) return new Response('Server misconfigured', { status: 500 });
+
+const entries = await listAuditEntries(env.DB, session.kanzlei_id, 200);
+
+const url = new URL(Astro.request.url);
+const verifyRequested = url.searchParams.get('verify') === '1';
+const verification = verifyRequested ? await verifyChain(env.DB, env.SECRET_KEY, session.kanzlei_id) : null;
+
+const fmtDateTime = (ts: number) => new Date(ts * 1000).toLocaleString('de-DE');
+
+const eventLabel = (type: string) => {
+  const map: Record<string, string> = {
+    'akte.created': 'Akte angelegt',
+    'akte.renamed': 'Akte umbenannt',
+    'akte.archived': 'Akte archiviert',
+    'akte.reopened': 'Akte zurückgegeben',
+    'akte.submitted': 'Akte eingereicht (durch Mandant)',
+    '2fa.enabled': '2FA aktiviert',
+    '2fa.disabled': '2FA deaktiviert',
+    'team.invited': 'Mitglied eingeladen',
+    'team.removed': 'Mitglied entfernt',
+  };
+  return map[type] ?? type;
+};
+---
+<AppLayout title="Audit-Log — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account/security" class="tlink">← Sicherheit</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Audit-Log</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">
+        Vorgangs-Protokoll
+      </h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        Append-only Hash-Chain — jede Mutation wird protokolliert und mit dem Vorgänger kryptographisch verkettet.
+        Manipulation eines Eintrags zerbricht die Kette.
+      </p>
+    </header>
+
+    <AccountNav active="security" />
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 16px;">
+        <p style="margin: 0; font-size: 14px; color: var(--ink-2);">
+          {entries.length} {entries.length === 1 ? 'Eintrag' : 'Einträge'} (zeigt die letzten 200)
+        </p>
+        <a href="/app/account/security/audit?verify=1" class="cta-button cta-button--secondary" style="text-decoration: none;">
+          Hash-Chain prüfen
+        </a>
+      </div>
+
+      {verification && (
+        verification.ok ? (
+          <p class="app-success" style="margin: 0 0 16px 0; padding: 12px 16px; background: #e6f4ea; border: 1px solid #a8d4b1; font-size: 14px;">
+            ✓ Hash-Chain intakt — alle {verification.totalEntries} Einträge konsistent verkettet.
+          </p>
+        ) : (
+          <p class="app-error" style="margin: 0 0 16px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+            ⚠ Kette gebrochen ab Eintrag #{verification.brokenAtId}: {verification.reason}
+          </p>
+        )
+      )}
+
+      {entries.length === 0 ? (
+        <p style="color: var(--muted); font-size: 14px; padding: 12px 0;">
+          Noch keine Einträge. Sobald Aktionen ausgeführt werden, erscheinen sie hier.
+        </p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {entries.map((e) => {
+            let payload: Record<string, unknown> = {};
+            try { payload = JSON.parse(e.payload_json || '{}'); } catch {}
+            const payloadParts = Object.entries(payload).map(([k, v]) =>
+              `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`
+            );
+            return (
+              <li style="border-top: 1px solid var(--rule); padding: 14px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;">
+                  <span style="font-size: 14px;"><strong>{eventLabel(e.event_type)}</strong></span>
+                  <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">{fmtDateTime(e.occurred_at)}</span>
+                </div>
+                <div style="font-size: 12px; color: var(--muted); font-family: var(--mono); margin-top: 4px;">
+                  {e.actor_email ?? 'system'}
+                  {e.subject_id && ` · ${e.subject_type}: ${e.subject_id.slice(0, 8)}…`}
+                  {' · #'}{e.id}
+                </div>
+                {payloadParts.length > 0 && (
+                  <details style="margin-top: 6px;">
+                    <summary style="font-size: 12px; color: var(--muted); cursor: pointer;">Details</summary>
+                    <pre style="font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0 0; padding: 8px 12px; background: #fafaf7; border: 1px solid var(--rule); white-space: pre-wrap; word-break: break-all;">{payloadParts.join('\n')}
+hash: {e.this_hash.slice(0, 32)}…
+prev: {e.previous_hash === 'GENESIS' ? 'GENESIS' : e.previous_hash.slice(0, 32) + '…'}</pre>
+                  </details>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 8px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #f5f3ee; }
+  .cta-button--secondary {
+    background: var(--paper);
+    color: var(--ink);
+  }
+</style>

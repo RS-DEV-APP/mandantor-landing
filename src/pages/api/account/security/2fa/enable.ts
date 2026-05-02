@@ -5,6 +5,7 @@ import {
   generateRecoveryCodes,
   hashAllRecoveryCodes,
 } from '../../../../../lib/totp';
+import { appendAudit, buildAuditContext } from '../../../../../lib/audit';
 
 export const prerender = false;
 
@@ -40,6 +41,11 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const codes = generateRecoveryCodes(8);
   const hashed = await hashAllRecoveryCodes(env.SECRET_KEY, codes);
   await setUserTotp(env.DB, user.id, secret, hashed);
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: '2fa.enabled',
+    subjectType: 'kanzlei_user',
+    subjectId: user.id,
+  });
 
   // Recovery-Codes Klartext in der Redirect-URL — sind nur einmal sichtbar.
   const params = new URLSearchParams();

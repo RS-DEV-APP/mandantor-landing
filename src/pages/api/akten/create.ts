@@ -3,6 +3,7 @@ import { createAkte, setMandantContact } from '../../../lib/akten';
 import { findAktenTypById } from '../../../lib/akten_typ';
 import { getSubscription, countActiveAkten } from '../../../lib/subscription';
 import { PLAN_LIMITS } from '../../../lib/stripe';
+import { appendAudit, buildAuditContext } from '../../../lib/audit';
 
 export const prerender = false;
 
@@ -70,5 +71,13 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   if (mandantEmail || mandantName) {
     await setMandantContact(env.DB, akte.id, mandantEmail, mandantName);
   }
+
+  await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {
+    eventType: 'akte.created',
+    subjectType: 'akte',
+    subjectId: akte.id,
+    payload: { case_label: caseLabel, akten_typ_id: aktenTypId, mandant_email: mandantEmail, mandant_name: mandantName },
+  });
+
   return redirect(`/app/akten/${akte.id}`, 303);
 };

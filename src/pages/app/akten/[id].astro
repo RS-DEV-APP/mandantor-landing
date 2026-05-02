@@ -94,7 +94,8 @@ const data1 = parseStepData(stepByNo.get(1)) as {
       <details class="akte-menu">
         <summary class="akte-menu-trigger" aria-label="Aktionen">⋯</summary>
         <div class="akte-menu-panel">
-          <a class="akte-menu-item" href={`/app/akten/${akte.id}/print`}>Druckansicht / PDF</a>
+          <a class="akte-menu-item" href={`/api/akten/${akte.id}/pdf?inline=1`} target="_blank" rel="noopener">Akten-PDF öffnen</a>
+          <a class="akte-menu-item" href={`/api/akten/${akte.id}/pdf`} download>Akten-PDF herunterladen</a>
           {files.length > 0 && (
             <a class="akte-menu-item" href={`/api/akten/${akte.id}/zip`} download>Alle Dokumente als ZIP</a>
           )}

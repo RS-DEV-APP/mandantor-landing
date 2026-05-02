@@ -4,6 +4,7 @@ import { findAkteByMandantToken } from '../../lib/akten';
 import { findKanzleiById } from '../../lib/db';
 import { findAktenTypByIdOnly, parseFileHints } from '../../lib/akten_typ';
 import { listSteps, listFiles, STEP_LABELS, STEP_COUNT, MAX_UPLOAD_BYTES, MAX_FILES_PER_AKTE, ALLOWED_UPLOAD_EXTENSIONS } from '../../lib/mandant';
+import { parseSignatureLevels, effectiveLevel, isConfigured as skribbleConfigured } from '../../lib/skribble';
 
 export const prerender = false;
 
@@ -24,6 +25,13 @@ const aktenTyp = akte.akten_typ_id
 const steps = await listSteps(env.DB, akte.id);
 const files = await listFiles(env.DB, akte.id);
 const fileHints = aktenTyp ? parseFileHints(aktenTyp.file_hints_json) : [];
+const sigLevels = aktenTyp ? parseSignatureLevels(aktenTyp.signature_levels_json) : {};
+const skribbleEnabled = skribbleConfigured(env);
+const stepLevels = {
+  2: effectiveLevel(sigLevels, 2),
+  3: effectiveLevel(sigLevels, 3),
+  4: effectiveLevel(sigLevels, 4),
+};
 const signedSteps = new Set(steps.filter((s) => s.signed_at).map((s) => s.step_no));
 const allSignedExceptUpload = [1, 2, 3, 4].every((n) => signedSteps.has(n));
 const isSubmitted = akte.status === 'submitted';
@@ -207,6 +215,11 @@ const fullName = data1.vorname && data1.nachname ? `${data1.vorname} ${data1.nac
             <input type="hidden" name="step_no" value="2" />
             <input type="hidden" name="document_text" value={vollmachtText} />
             <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Vollmacht</h2>
+            {stepLevels[2] === 'QES' && !skribbleEnabled && (
+              <p style="margin: 0 0 16px 0; padding: 12px 16px; background: #fffaf0; border: 1px solid #e6d4a3; border-left: 4px solid var(--gold); font-size: 13px;">
+                <strong>Hinweis:</strong> Diese Kanzlei verlangt für die Vollmacht eine qualifizierte elektronische Signatur (QES, § 80 ZPO). Diese Funktion ist im aktuellen Mandantor-Setup noch nicht aktiviert — bitte wenden Sie sich für die abschließende Vollmachtserteilung direkt an die Kanzlei.
+              </p>
+            )}
             <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
               Bitte lesen Sie den folgenden Text und bestätigen Sie unten.
             </p>

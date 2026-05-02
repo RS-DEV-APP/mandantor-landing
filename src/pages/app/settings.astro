@@ -52,6 +52,11 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
         ✓ Branding aktualisiert.
       </p>
     )}
+    {url.searchParams.get('retention_saved') === '1' && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Aufbewahrungs-Einstellungen gespeichert.
+      </p>
+    )}
     {savedTyp && (
       <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
         ✓ Akten-Typ <strong>{savedTyp}</strong> gespeichert.
@@ -200,6 +205,52 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
         </label>
 
         <button type="submit" class="cta-button" style="margin-top: 16px;">Branding speichern</button>
+      </div>
+    </form>
+
+    <form method="post" action="/api/kanzlei/retention" style="margin-top: 40px;">
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 22px; margin-bottom: 8px;">Aufbewahrung</h2>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+          Akten werden automatisch archiviert wenn die gesetzliche Frist erreicht ist.
+          Standardwerte gelten wenn die Felder leer bleiben: <strong>5 Jahre</strong> nach Einreichen
+          (§ 50 BRAO Anwaltsakte) und <strong>12 Monate</strong> Inaktivität für nicht-eingereichte Akten
+          (Datenschutzminimierung).
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <label class="app-label" style="margin-bottom: 0;">
+            <span class="app-label-text">Aufbewahrungs-Frist eingereicht (Jahre)</span>
+            <input
+              class="app-input"
+              type="number"
+              name="retention_years"
+              min="1"
+              max="30"
+              value={kanzlei.retention_years ?? ''}
+              placeholder="5"
+            />
+          </label>
+          <label class="app-label" style="margin-bottom: 0;">
+            <span class="app-label-text">Pre-Submit-Frist (Monate Inaktivität)</span>
+            <input
+              class="app-input"
+              type="number"
+              name="draft_retention_months"
+              min="1"
+              max="60"
+              value={kanzlei.draft_retention_months ?? ''}
+              placeholder="12"
+            />
+          </label>
+        </div>
+
+        <p style="font-size: 12px; color: var(--muted); margin-top: 12px;">
+          Auto-Archivierung läuft als Cron-Job. Eingereichte Akten landen nach Ablauf im Lösch-Backlog —
+          du wirst sie im Dashboard sehen, das endgültige Löschen bleibt manueller Akt.
+        </p>
+
+        <button type="submit" class="cta-button" style="margin-top: 16px;">Aufbewahrung speichern</button>
       </div>
     </form>
 

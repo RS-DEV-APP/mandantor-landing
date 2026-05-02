@@ -127,6 +127,12 @@ const needsKanzleiSetup =
       </p>
     )}
 
+    {url.searchParams.get('reactivated') && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Akte <strong>{url.searchParams.get('reactivated')}</strong> reaktiviert.
+      </p>
+    )}
+
     {needsKanzleiSetup && (
       <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
         <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Kanzlei-Daten vervollständigen</h2>
@@ -172,16 +178,25 @@ const needsKanzleiSetup =
           {visibleAkten.map((a) => {
             const ts = a.submitted_at ?? a.created_at;
             const tsLabel = a.submitted_at ? `eingereicht ${fmtDate(ts)}` : `angelegt ${fmtDate(ts)}`;
+            const retentionLabel = a.retention_marked_at ? `Lösch-Backlog (${fmtDate(a.retention_marked_at)})` : null;
             return (
-              <li style="border-bottom: 1px solid var(--rule);">
+              <li style="border-bottom: 1px solid var(--rule); position: relative;">
                 <a href={`/app/akten/${a.id}`} class="akte-row">
                   <span class="akte-row-title">
                     {a.case_label ?? 'Ohne Bezeichnung'}
                     {a.mandant_name && <span style="color: var(--muted); font-size: 13px; margin-left: 8px;">· {a.mandant_name}</span>}
                   </span>
                   <span class={`status-badge status-${a.status}`}>{statusLabel(a.status)}</span>
-                  <span class="akte-row-date">{tsLabel}</span>
+                  <span class="akte-row-date">
+                    {retentionLabel ? <span style="color: #b23a3a;">{retentionLabel}</span> : tsLabel}
+                  </span>
                 </a>
+                {showArchived && (
+                  <form method="post" action="/api/akten/reactivate" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin: 0;">
+                    <input type="hidden" name="akte_id" value={a.id} />
+                    <button type="submit" class="reactivate-btn">Reaktivieren</button>
+                  </form>
+                )}
               </li>
             );
           })}
@@ -238,4 +253,15 @@ const needsKanzleiSetup =
   .status-in_progress { background: #e8f0fe; color: #1a4d8a; }
   .status-submitted { background: #e6f4ea; color: #1a6d2c; }
   .status-archived { background: #f0f0f0; color: #555; }
+  .reactivate-btn {
+    padding: 6px 10px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .reactivate-btn:hover { background: #f5f3ee; }
 </style>

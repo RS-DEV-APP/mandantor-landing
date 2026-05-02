@@ -9,6 +9,8 @@ type Env = {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_STANDARD?: string;
+  SKRIBBLE_USERNAME?: string;
+  SKRIBBLE_API_KEY?: string;
 };
 
 declare namespace App {

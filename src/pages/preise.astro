@@ -1,0 +1,346 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+---
+<Layout title="Preise — Mandantor">
+  <Nav />
+
+  <main class="pricing-page">
+    <div class="container">
+      <header class="pricing-header">
+        <span class="marker">
+          <span class="pilcrow">§</span>
+          <span>Preise</span>
+        </span>
+        <h1 class="serif pricing-title">
+          Klare Preise, faire Limits.
+        </h1>
+        <p class="lead pricing-lead">
+          Während der Pilot-Phase: kostenlos, ohne Limits, ohne Kreditkarte.
+          Nach Pilot-Ende wechseln Sie auf einen passenden Tarif — oder kündigen.
+        </p>
+      </header>
+
+      <div class="tier-grid">
+        <article class="tier">
+          <header>
+            <h2 class="serif tier-name">Pilot</h2>
+            <p class="tier-tagline">Während der Beta — Pilotkanzleien</p>
+            <div class="tier-price">
+              <span class="tier-price-amount">0&thinsp;€</span>
+              <span class="tier-price-unit">/&thinsp;Monat</span>
+            </div>
+          </header>
+          <ul class="tier-features">
+            <li>Unbegrenzte Akten und Mandant-Onboardings</li>
+            <li>Bis zu 5 Anwält:innen pro Kanzlei</li>
+            <li>Volle Funktion (Audit-Log, Branding, 2FA, PDF-Export)</li>
+            <li>Direkter Support per E-Mail</li>
+            <li>Keine Kreditkarte erforderlich</li>
+          </ul>
+          <a href="/app/login" class="btn tier-cta">
+            <span>Pilot starten</span>
+            <span class="arrow">→</span>
+          </a>
+          <p class="tier-fineprint">
+            Pilot endet voraussichtlich Q4 2026. 30 Tage vor Umstellung
+            erhalten Sie Bescheid und können einen Tarif wählen oder kündigen.
+          </p>
+        </article>
+
+        <article class="tier tier-feature">
+          <header>
+            <span class="tier-badge">Empfohlen</span>
+            <h2 class="serif tier-name">Starter</h2>
+            <p class="tier-tagline">Solo-Anwalt &middot; Kleinkanzlei</p>
+            <div class="tier-price">
+              <span class="tier-price-amount">39&thinsp;€</span>
+              <span class="tier-price-unit">/&thinsp;Monat</span>
+            </div>
+            <p class="tier-pricesub">zzgl. MwSt. &middot; jederzeit kündbar</p>
+          </header>
+          <ul class="tier-features">
+            <li>1 Anwalt-Sitz</li>
+            <li>Bis zu 50 aktive Akten</li>
+            <li>1 GB Dokumenten-Speicher (R2, EU)</li>
+            <li>Akten-Typen mit eigenen Vorlagen</li>
+            <li>PDF-Export, ZIP-Download, Druckansicht</li>
+            <li>Hash-Chain-Audit-Log (§ 8 GwG, Art. 30 DSGVO)</li>
+            <li>2-Faktor-Authentifizierung</li>
+            <li>Logo &amp; Akzentfarbe pro Kanzlei</li>
+            <li>Aufbewahrungs-Automatik (§ 50 BRAO)</li>
+            <li>Reminder-Mails an Mandant:innen</li>
+            <li>E-Mail-Support</li>
+          </ul>
+          <a href="/app/login" class="btn tier-cta">
+            <span>Mit Starter loslegen</span>
+            <span class="arrow">→</span>
+          </a>
+          <p class="tier-fineprint">
+            Während der Pilot-Phase nicht buchbar — bitte zuerst „Pilot starten" wählen.
+          </p>
+        </article>
+
+        <article class="tier">
+          <header>
+            <h2 class="serif tier-name">Pro</h2>
+            <p class="tier-tagline">Wachsende Kanzlei &middot; Team</p>
+            <div class="tier-price">
+              <span class="tier-price-amount">79&thinsp;€</span>
+              <span class="tier-price-unit">/&thinsp;Sitz / Monat</span>
+            </div>
+            <p class="tier-pricesub">zzgl. MwSt. &middot; ab 2 Sitze</p>
+          </header>
+          <ul class="tier-features">
+            <li>Bis zu 10 Anwalt-Sitze</li>
+            <li>Bis zu 250 aktive Akten</li>
+            <li>10 GB Dokumenten-Speicher</li>
+            <li>Alles aus Starter, plus:</li>
+            <li>Mehrsprachiges Mandant-Onboarding (DE/EN, weitere folgen)</li>
+            <li>Konflikt-Check (BORA § 43a) bei Akte-Anlage</li>
+            <li>Bulk-Operationen, Massen-Export</li>
+            <li>Webhook-Integrationen (eigene Backends, Zapier, n8n)</li>
+            <li>Priority-Support</li>
+            <li>Erweiterte Rollen-Verwaltung</li>
+          </ul>
+          <a href="/app/login" class="btn btn-ghost tier-cta">
+            <span>Pro-Plan wählen</span>
+            <span class="arrow">→</span>
+          </a>
+          <p class="tier-fineprint">
+            Erst nach Pilot-Ende buchbar. QES via Skribble in Vorbereitung.
+          </p>
+        </article>
+      </div>
+
+      <section class="enterprise">
+        <div class="enterprise-inner">
+          <div>
+            <h2 class="serif enterprise-title">Enterprise</h2>
+            <p class="enterprise-text">
+              Für Kanzleien ab ~10 Anwält:innen, mit Bedarf an White-Label
+              (eigene Subdomain), DATEV/RA-MICRO/Advolux-Konnektor, SSO,
+              IP-Whitelist, individueller Aufbewahrung und SLA.
+            </p>
+          </div>
+          <a href="mailto:hello@mandantor.de?subject=Enterprise%20Anfrage" class="btn">
+            <span>Gespräch vereinbaren</span>
+            <span class="arrow">→</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="faq">
+        <h2 class="serif faq-title">Häufige Fragen</h2>
+        <div class="faq-grid">
+          <div>
+            <h3>Brauche ich eine Kreditkarte für die Pilot-Phase?</h3>
+            <p>Nein. Sie melden sich mit Ihrer Kanzlei-E-Mail an und erhalten einen Magic-Link. Keine Karte, keine Bindung.</p>
+          </div>
+          <div>
+            <h3>Wie wird abgerechnet?</h3>
+            <p>Über Stripe, monatlich im Voraus, in Euro mit ausgewiesener MwSt. Rechnungen erscheinen automatisch in Ihrem Account-Bereich.</p>
+          </div>
+          <div>
+            <h3>Was passiert mit meinen Daten beim Wechsel oder Kündigen?</h3>
+            <p>Daten bleiben gemäß § 50 BRAO mindestens 5 Jahre archiviert. Sie können jederzeit Ihre Akten als ZIP exportieren oder die gesamte Kanzlei löschen — wenn keine Aufbewahrungspflicht entgegensteht.</p>
+          </div>
+          <div>
+            <h3>Wo werden die Daten gehostet?</h3>
+            <p>Cloudflare EU (D1-Datenbank in Frankfurt, R2-Object-Storage EU-Region, E-Mail über Resend EU/Irland). Kein US-Cloud, keine Übermittlung in Drittländer.</p>
+          </div>
+          <div>
+            <h3>Gibt es einen AVV?</h3>
+            <p>Ja. Auftragsverarbeitungsvertrag gemäß Art. 28 DSGVO ist Standard-Bestandteil bei Pilot-Aufnahme — gegenzeichnen vor Mandant-Onboarding.</p>
+          </div>
+          <div>
+            <h3>Was ist mit qualifizierter elektronischer Signatur (QES)?</h3>
+            <p>QES für Vollmachten und Honorarvereinbarungen kommt im Pro-Tier (über Skribble bzw. D-Trust). Aktuell: einfache elektronische Signatur (eIDAS Art. 25) mit IP/UA-Audit.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .pricing-page {
+    padding: 120px 0 80px;
+  }
+  .pricing-header {
+    max-width: 760px;
+    margin-bottom: 64px;
+  }
+  .pricing-title {
+    font-size: clamp(36px, 5vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 12px 0 16px;
+  }
+  .pricing-lead {
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 560px;
+  }
+
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 80px;
+  }
+  @media (max-width: 980px) {
+    .tier-grid { grid-template-columns: 1fr; }
+  }
+
+  .tier {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .tier-feature {
+    border-color: var(--ink);
+    box-shadow: 0 1px 0 var(--ink);
+  }
+  .tier-badge {
+    position: absolute;
+    top: -12px;
+    left: 32px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+  }
+  .tier-name {
+    font-size: 28px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .tier-tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 20px;
+  }
+  .tier-price {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .tier-price-amount {
+    font-family: var(--serif);
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .tier-price-unit {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .tier-pricesub {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 24px;
+  }
+  .tier-features {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+  .tier-features li {
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    padding-left: 22px;
+    position: relative;
+  }
+  .tier-features li::before {
+    content: "·";
+    position: absolute;
+    left: 8px;
+    color: var(--gold);
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .tier-cta {
+    margin-bottom: 12px;
+  }
+  .tier-fineprint {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .enterprise {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 48px 0;
+    margin-bottom: 80px;
+  }
+  .enterprise-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .enterprise-title {
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .enterprise-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 600px;
+  }
+
+  .faq {
+    margin-bottom: 40px;
+  }
+  .faq-title {
+    font-size: 32px;
+    letter-spacing: -0.01em;
+    margin: 0 0 32px;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 48px;
+  }
+  @media (max-width: 720px) {
+    .faq-grid { grid-template-columns: 1fr; gap: 24px; }
+  }
+  .faq-grid h3 {
+    font-family: var(--sans);
+    font-size: 16px;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .faq-grid p {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0;
+  }
+</style>

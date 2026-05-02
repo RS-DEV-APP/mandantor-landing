@@ -10,13 +10,12 @@ import Wordmark from './Wordmark.astro';
     </a>
 
     <div class="nav-links">
-      <a href="#how" class="tlink nav-link">So funktioniert es</a>
-      <a href="#features" class="tlink nav-link">Funktionen</a>
-      <a href="#status" class="tlink nav-link">Status</a>
-      <a href="#kontakt" class="tlink nav-link">Kontakt</a>
-      <a href="#kontakt" class="btn btn-ghost nav-cta">
-        Probelauf anfragen
-      </a>
+      <a href="/#how" class="tlink nav-link">So funktioniert es</a>
+      <a href="/#features" class="tlink nav-link">Funktionen</a>
+      <a href="/preise" class="tlink nav-link">Preise</a>
+      <a href="/#kontakt" class="tlink nav-link">Kontakt</a>
+      <a href="/app/login" class="tlink nav-link nav-link-login">Anmelden</a>
+      <a href="/app/login" class="btn nav-cta">Kostenlos testen</a>
     </div>
   </div>
 </nav>
@@ -56,14 +55,20 @@ import Wordmark from './Wordmark.astro';
     font-size: 14.5px;
     color: var(--ink-2);
   }
+  .nav-link-login {
+    border-left: 1px solid var(--rule);
+    padding-left: 36px;
+    margin-left: 0;
+  }
   .nav-cta {
     padding: 10px 18px;
     font-size: 14px;
   }
 
   @media (max-width: 880px) {
-    .nav-links { gap: 16px; }
+    .nav-links { gap: 12px; }
     .nav-link { display: none; }
+    .nav-link-login { display: inline; padding-left: 0; border-left: 0; font-size: 13px; }
     .nav-cta { padding: 8px 14px; font-size: 13px; }
   }
 </style>

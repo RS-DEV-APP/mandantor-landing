@@ -6,13 +6,12 @@
 // erfunden. Bei Fortschritt jeweils Datum aktualisieren.
 const milestones = [
   { date: 'Februar 2026', label: 'Konzeptphase abgeschlossen', state: 'done' },
-  { date: 'April 2026', label: 'Tally-Umfrage zur Bedarfs­erhebung läuft', state: 'active' },
-  { date: 'Sommer 2026', label: 'Geschlossene Pilotphase mit drei Kanzleien geplant', state: 'next' },
-  { date: 'Q4 2026', label: 'Öffentlicher Beta-Zugang vorgesehen', state: 'planned' },
+  { date: 'April 2026', label: 'Bedarfserhebung mit ersten Kanzleien', state: 'done' },
+  { date: 'Mai 2026', label: 'Geschlossene Pilotphase — 3-5 Plätze offen', state: 'active' },
+  { date: 'Q4 2026', label: 'Öffentliche Beta · QES via Skribble · DATEV-Konnektor', state: 'next' },
 ];
 
-// Datum im Header — manuell aktualisieren beim nächsten Review
-const lastReviewed = '29. April 2026';
+const lastReviewed = '2. Mai 2026';
 ---
 <section id="status" class="status tint">
   <div class="container">
@@ -30,10 +29,11 @@ const lastReviewed = '29. April 2026';
           Wir sind ehrlich, wo wir stehen.
         </h2>
         <p class="lead status-lead">
-          Mandantor ist in der Discovery-Phase. Es gibt noch keine zahlenden Kunden,
-          keinen produktiven Code und keinen Marketing-Budget-Topf. Was es gibt:
-          eine klare These, eine wachsende Liste interessierter Kanzleien und
-          eine Person, die das Produkt mit Sorgfalt aufbaut.
+          Mandantor ist in der geschlossenen Pilotphase. Das Produkt ist live
+          und einsatzbereit — Mandanten-Onboarding, Audit-Log, PDF-Export,
+          2-Faktor-Login, Branding pro Kanzlei. Drei bis fünf Pilot-Kanzleien
+          nutzen es kostenlos. Bezahlte Tarife (€39 Starter, €79 Pro pro Sitz)
+          starten nach Pilot-Ende.
         </p>
         <div class="status-author">
           <span class="mono">Verantwortlich</span>

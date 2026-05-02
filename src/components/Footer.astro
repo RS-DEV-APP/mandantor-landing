@@ -20,7 +20,15 @@ import Wordmark from './Wordmark.astro';
         <ul class="footer-list">
           <li><a href="/#how" class="tlink">So funktioniert es</a></li>
           <li><a href="/#features" class="tlink">Funktionen</a></li>
-          <li><a href="/#status" class="tlink">Stand</a></li>
+          <li><a href="/preise" class="tlink">Preise</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <div class="mono footer-col-title">Konto</div>
+        <ul class="footer-list">
+          <li><a href="/app/login" class="tlink">Anmelden</a></li>
+          <li><a href="/app/login" class="tlink">Kostenlos testen</a></li>
         </ul>
       </div>
 
@@ -37,7 +45,6 @@ import Wordmark from './Wordmark.astro';
         <div class="mono footer-col-title">Kontakt</div>
         <ul class="footer-list">
           <li><a href="mailto:hello@mandantor.de" class="tlink">hello@mandantor.de</a></li>
-          <li><a href="https://tally.so/r/9q6PbY" target="_blank" rel="noopener" class="tlink">Bedarfsumfrage</a></li>
           <li class="footer-list-muted">Werktags · München</li>
         </ul>
       </div>
@@ -45,8 +52,8 @@ import Wordmark from './Wordmark.astro';
 
     <hr class="rule" />
     <div class="footer-base">
-      <span>© 2026 Mandantor. Discovery-Phase — alle Angaben vorläufig.</span>
-      <span class="mono">v0.1 · Apr 2026</span>
+      <span>© 2026 Mandantor. Pilot-Phase — alle Pilot-Konditionen vorläufig.</span>
+      <span class="mono">v0.5 · Mai 2026</span>
     </div>
   </div>
 </footer>
@@ -59,8 +66,8 @@ import Wordmark from './Wordmark.astro';
   }
   .footer-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 48px;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 36px;
     margin-bottom: 48px;
   }
   .footer-brand {

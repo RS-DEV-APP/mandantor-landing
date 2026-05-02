@@ -3,23 +3,30 @@ const items = [
   {
     n: '01',
     title: 'Ein Link statt acht Anhänge.',
-    body: 'Statt PDF-Vollmacht, PDF-Datenschutz, Word-Datei für Stammdaten und einer separaten E-Mail mit „bitte unterschrieben zurück" — schicken Sie einen Link. Der Mandant erledigt alles in einer Sitzung, am Schreibtisch oder am Telefon.',
-    kicker: 'Vor­bereitung',
-    bullets: ['Vorausgefüllt von der Kanzlei', 'Mobil und Desktop', 'Speichert automatisch'],
+    body: 'Statt PDF-Vollmacht, Word-Datei für Stammdaten und einer E-Mail mit „bitte unterschrieben zurück" — schicken Sie einen Link. Mandant:innen füllen Stammdaten, bestätigen Vollmacht, Datenschutz und Honorar und laden Dokumente hoch. In einer Sitzung, am Schreibtisch oder mobil.',
+    kicker: 'Onboarding',
+    bullets: ['Mobile-optimiert (iOS/Android)', 'Pausieren und fortsetzen', 'Reminder bei Inaktivität'],
   },
   {
     n: '02',
-    title: 'DSGVO-konform, sichtbar dokumentiert.',
-    body: 'Datenhaltung ausschließlich in Frankfurt am Main. Auftragsverarbeitungs­vertrag und Verfahrensverzeichnis liegen unterschriftsbereit vor. Verschlüsselte Übertragung, verschlüsselte Ablage, automatische Löschfristen.',
-    kicker: 'Daten­schutz',
-    bullets: ['Hosting in DE (ISO 27001)', 'AVV vorbereitet', 'Auto-Löschung nach Mandatsabschluss'],
+    title: 'Vorlagen pro Mandatsart.',
+    body: 'Mietsache, Verkehrsunfall, Familienrecht — Sie definieren pro Akten-Typ einen eigenen Vollmacht- und DSGVO-Text, eigene Honorarsätze und eine Liste erwarteter Dokumente. Beim Anlegen einer Akte wählen Sie den Typ aus — Mandant:innen sehen typ-spezifische Texte.',
+    kicker: 'Vorlagen',
+    bullets: ['Eigene Vollmacht- und DSGVO-Texte', 'Honorarsätze pro Mandatsart', 'Eigenes Logo und Akzentfarbe'],
   },
   {
     n: '03',
-    title: 'Übergabe in Ihr System.',
-    body: 'Was bei Ihnen ankommt: ein strukturierter Datensatz, ein PDF-Dossier mit Unterschriften, alle Anlagen sortiert. Optional Export in DATEV, RA-Micro oder advoware. Kein Copy-and-Paste mehr.',
-    kicker: 'Über­gabe',
-    bullets: ['Strukturierter JSON / CSV-Export', 'Signiertes PDF-Dossier', 'Schnittstelle zu RA-Micro & DATEV'],
+    title: 'DSGVO und BORA — eingebaut.',
+    body: 'EU-Hosting bei Cloudflare (Frankfurt). Append-only Audit-Log mit Hash-Chain (§ 8 GwG, Art. 30 DSGVO). Aufbewahrungs-Automatik (§ 50 BRAO 5 Jahre). Konflikt-Check bei Akte-Anlage (§ 43a BRAO). 2-Faktor-Authentifizierung. AVV vor Pilot-Aufnahme.',
+    kicker: 'Compliance',
+    bullets: ['Hash-Chain-Audit-Log', '2FA + IP/UA-Audit pro Bestätigung', 'Konflikt- und Aufbewahrungs-Automatik'],
+  },
+  {
+    n: '04',
+    title: 'Übergabe in Ihre Akte.',
+    body: 'Was bei Ihnen ankommt: ein strukturierter Datensatz, ein PDF-Dossier mit allen Bestätigungen und Audit-Spuren, Dokumente als ZIP, Akten-Detailseite mit Status-Workflow. Anwalt-Notizen pro Akte. Mandant kann nachträglich um Korrektur gebeten werden.',
+    kicker: 'Übergabe',
+    bullets: ['PDF-Akten-Export (PDF/A-nahe)', 'ZIP-Bulk-Download aller Dokumente', 'Re-Open-Schleife für Mandant'],
   },
 ];
 ---
@@ -28,9 +35,9 @@ const items = [
     <div class="features-marker-row">
       <span class="marker">
         <span class="pilcrow">§</span>
-        <span>03 — Was es leistet</span>
+        <span>Was Mandantor leistet</span>
       </span>
-      <span class="mono">Drei Punkte. Mehr braucht es nicht.</span>
+      <span class="mono">Vier Bausteine.</span>
     </div>
 
     <div class="features-list">

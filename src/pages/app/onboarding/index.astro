@@ -1,0 +1,155 @@
+---
+import OnboardingLayout from '../../../components/OnboardingLayout.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { findUserById } from '../../../lib/users';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const user = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !user) return Astro.redirect('/app/login', 302);
+
+// Wenn Onboarding schon durch ist → direkt zum Dashboard
+if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard?onboarded=1', 302);
+---
+<OnboardingLayout
+  step={1}
+  title="Willkommen bei Mandantor."
+  subtitle={`Schön, dass Sie da sind, ${user.display_name ?? user.email}. Wir richten in den nächsten 3 Minuten Ihre Kanzlei ein, sodass Sie direkt loslegen können.`}
+>
+  <div class="onb-card">
+    <h2 class="serif onb-card-title">Was wir gleich anlegen</h2>
+    <ul class="onb-list">
+      <li>
+        <span class="mono">02</span>
+        <div>
+          <strong>Kanzlei-Stammdaten</strong>
+          <span>Anzeigename, der Ihren Mandant:innen im Onboarding angezeigt wird.</span>
+        </div>
+      </li>
+      <li>
+        <span class="mono">03</span>
+        <div>
+          <strong>Branding</strong>
+          <span>Logo und Akzentfarbe — der Mandant-Wizard wirkt dann wie Ihre Kanzlei, nicht wie Mandantor.</span>
+        </div>
+      </li>
+      <li>
+        <span class="mono">04</span>
+        <div>
+          <strong>Vorlagen</strong>
+          <span>Vollmachts- und Honorartexte. Standardvorlagen sind hinterlegt — Sie können später jederzeit anpassen.</span>
+        </div>
+      </li>
+      <li>
+        <span class="mono">05</span>
+        <div>
+          <strong>Akten-Typen</strong>
+          <span>Wir richten typische Mandatsarten für Sie ein (Mietsache, Verkehrsunfall, Familienrecht …) — wählen Sie aus, was zu Ihnen passt.</span>
+        </div>
+      </li>
+    </ul>
+    <p class="onb-fineprint">
+      Jeden Schritt können Sie überspringen und später unter Einstellungen nachholen.
+    </p>
+  </div>
+
+  <div class="onb-cta-row">
+    <form method="post" action="/api/onboarding/skip">
+      <button type="submit" class="btn-link">Setup überspringen</button>
+    </form>
+    <a href="/app/onboarding/kanzlei" class="cta-button">
+      Loslegen <span class="arrow">→</span>
+    </a>
+  </div>
+</OnboardingLayout>
+
+<style>
+  .onb-card {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .onb-card-title {
+    font-size: 20px;
+    margin: 0 0 24px;
+    letter-spacing: -0.01em;
+  }
+  .onb-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .onb-list li {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .onb-list .mono {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .onb-list strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .onb-list span:not(.mono) {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .onb-fineprint {
+    margin: 24px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+  .onb-cta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .btn-link {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px 0;
+  }
+  .btn-link:hover { color: var(--ink); }
+</style>

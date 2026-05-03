@@ -1,0 +1,165 @@
+---
+import OnboardingLayout from '../../../components/OnboardingLayout.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { listAktenTypen } from '../../../lib/akten_typ';
+import { AKTEN_TYP_PRESETS } from '../../../lib/akten_typ_presets';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302);
+
+const existingTypen = await listAktenTypen(env.DB, kanzlei.id);
+const existingNames = new Set(existingTypen.map((t) => t.name.toLowerCase()));
+---
+<OnboardingLayout
+  step={5}
+  title="Welche Mandatsarten brauchen Sie?"
+  subtitle="Wir legen für jede ausgewählte Mandatsart eine Vorlage an — mit eigener Vollmacht, Honorarsätzen und einer Liste der typischen Dokumente, die Mandant:innen mitliefern sollen. Sie können später jeden Typ einzeln anpassen."
+>
+  <form method="post" action="/api/onboarding/akten-typen" class="onb-form">
+    <div class="onb-presets">
+      {AKTEN_TYP_PRESETS.map((preset) => {
+        const alreadyHave = existingNames.has(preset.name.toLowerCase());
+        return (
+          <label class={`onb-preset ${alreadyHave ? 'is-existing' : ''}`}>
+            <input
+              type="checkbox"
+              name="presets"
+              value={preset.key}
+              disabled={alreadyHave}
+            />
+            <div>
+              <div class="onb-preset-head">
+                <strong>{preset.name}</strong>
+                {alreadyHave && <span class="onb-preset-existing">bereits vorhanden</span>}
+              </div>
+              <p class="onb-preset-desc">{preset.description}</p>
+              <p class="onb-preset-files">
+                <span class="mono">Dokumente:</span> {preset.file_hints.join(' · ')}
+              </p>
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  </form>
+
+  <div class="onb-cta-row">
+    <a href="/app/onboarding/vorlagen" class="btn-link">← Zurück</a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/app/onboarding/done" class="btn-link">Überspringen</a>
+      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/akten-typen&quot;]').submit()" class="cta-button">
+        Auswahl anlegen <span class="arrow">→</span>
+      </button>
+    </div>
+  </div>
+</OnboardingLayout>
+
+<style>
+  .onb-form { margin-bottom: 24px; }
+  .onb-presets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 720px) {
+    .onb-presets { grid-template-columns: 1fr; }
+  }
+  .onb-preset {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 16px 18px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    transition: border-color 0.15s;
+  }
+  .onb-preset:hover { border-color: var(--ink); }
+  .onb-preset:has(input:checked) {
+    border-color: var(--ink);
+    background: #fafaf7;
+  }
+  .onb-preset.is-existing {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .onb-preset input[type="checkbox"] {
+    margin-top: 4px;
+  }
+  .onb-preset-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .onb-preset-head strong {
+    font-size: 15px;
+  }
+  .onb-preset-existing {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gold);
+  }
+  .onb-preset-desc {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .onb-preset-files {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .onb-preset-files .mono {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .onb-cta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .btn-link {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px 0;
+  }
+  .btn-link:hover { color: var(--ink); }
+</style>

@@ -133,6 +133,16 @@ const needsKanzleiSetup =
       </p>
     )}
 
+    {url.searchParams.get('onboarded') === '1' && (
+      <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
+        <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Willkommen — Setup abgeschlossen.</h2>
+        <p style="color: var(--ink-2); font-size: 14px; margin: 0;">
+          Ihre Kanzlei ist eingerichtet. Legen Sie unten Ihre erste Akte an,
+          oder erkunden Sie weitere Funktionen unter <a href="/app/account" class="tlink">Account</a>.
+        </p>
+      </div>
+    )}
+
     {needsKanzleiSetup && (
       <div class="app-card" style="margin-bottom: 24px; border-left: 4px solid var(--gold); background: #fffaf0;">
         <h2 class="serif" style="font-size: 18px; margin: 0 0 8px;">Kanzlei-Daten vervollständigen</h2>

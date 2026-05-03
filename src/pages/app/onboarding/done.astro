@@ -1,0 +1,176 @@
+---
+import OnboardingLayout from '../../../components/OnboardingLayout.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { listAktenTypen } from '../../../lib/akten_typ';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
+---
+<OnboardingLayout
+  step={5}
+  title="Fertig. Sie können loslegen."
+  subtitle="Ihre Kanzlei ist eingerichtet — Sie können sofort die erste Akte anlegen oder den Mandantor-Funktionsumfang weiter erkunden."
+  totalSteps={5}
+>
+  <div class="onb-summary">
+    <div class="onb-summary-card">
+      <span class="onb-summary-label">Kanzlei</span>
+      <span class="onb-summary-value">{kanzlei.display_name}</span>
+    </div>
+    <div class="onb-summary-card">
+      <span class="onb-summary-label">Branding</span>
+      <span class="onb-summary-value">
+        {kanzlei.logo_r2_key ? '✓ Logo' : '— kein Logo'}
+        {' · '}
+        {kanzlei.brand_color ? `Farbe ${kanzlei.brand_color}` : 'Standard-Farbe'}
+      </span>
+    </div>
+    <div class="onb-summary-card">
+      <span class="onb-summary-label">Vorlagen</span>
+      <span class="onb-summary-value">
+        {kanzlei.vollmacht_template ? '✓ Eigene Vollmacht' : 'Standard-Vollmacht'}
+        {' · '}
+        {kanzlei.honorar_hourly ? '✓ Eigenes Honorar' : 'Standard-Honorar'}
+      </span>
+    </div>
+    <div class="onb-summary-card">
+      <span class="onb-summary-label">Akten-Typen</span>
+      <span class="onb-summary-value">
+        {aktenTypen.length === 0
+          ? '— keine Typen, Standard-Vorlage gilt'
+          : `${aktenTypen.length} ${aktenTypen.length === 1 ? 'Typ' : 'Typen'}: ${aktenTypen.map((t) => t.name).join(', ')}`
+        }
+      </span>
+    </div>
+  </div>
+
+  <div class="onb-card">
+    <h2 class="serif onb-card-title">Was als Nächstes?</h2>
+    <ul class="onb-next-list">
+      <li>
+        <strong>Erste Akte anlegen.</strong> Im Dashboard auf „Neue Akte" — Mandant:in bekommt
+        einen Link per E-Mail oder Sie kopieren ihn.
+      </li>
+      <li>
+        <strong>Team einladen.</strong> Account → Team → Kollegen einladen, sobald jemand mitarbeiten soll.
+      </li>
+      <li>
+        <strong>2-Faktor aktivieren.</strong> Account → Sicherheit → 2FA einrichten — wir empfehlen es allen Anwält:innen.
+      </li>
+      <li>
+        <strong>Pilot-Tarif gilt.</strong> Während der Beta-Phase kostenlos; bei Fragen einfach an
+        <a href="mailto:hello@mandantor.de" class="tlink">hello@mandantor.de</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="onb-cta-row">
+    <a href="/app/account" class="btn-link">Account-Bereich öffnen</a>
+    <form method="post" action="/api/onboarding/complete">
+      <button type="submit" class="cta-button">
+        Zum Dashboard <span class="arrow">→</span>
+      </button>
+    </form>
+  </div>
+</OnboardingLayout>
+
+<style>
+  .onb-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 640px) {
+    .onb-summary { grid-template-columns: 1fr; }
+  }
+  .onb-summary-card {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .onb-summary-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .onb-summary-value {
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .onb-card {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 24px 32px;
+    margin-bottom: 24px;
+  }
+  .onb-card-title {
+    font-size: 18px;
+    margin: 0 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .onb-next-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .onb-next-list li {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    padding-left: 20px;
+    position: relative;
+  }
+  .onb-next-list li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--gold);
+  }
+  .onb-cta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .btn-link {
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    text-decoration: underline;
+    padding: 8px 0;
+  }
+  .btn-link:hover { color: var(--ink); }
+</style>

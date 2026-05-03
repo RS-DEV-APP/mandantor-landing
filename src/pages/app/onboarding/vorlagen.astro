@@ -1,0 +1,132 @@
+---
+import OnboardingLayout from '../../../components/OnboardingLayout.astro';
+import { findKanzleiById } from '../../../lib/db';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302);
+
+const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
+---
+<OnboardingLayout
+  step={4}
+  title="Vorlagen für Vollmacht und Honorar."
+  subtitle="Wir liefern juristisch geprüfte Standardtexte, die Sie 1:1 verwenden können. Wenn Sie eigene Vorlagen haben, einfach hier eintragen."
+>
+  <form method="post" action="/api/onboarding/vorlagen" class="onb-form">
+    <div class="onb-card" style="margin-bottom: 16px;">
+      <h2 class="serif onb-card-title">Vollmacht-Text</h2>
+      <p class="onb-hint-text">
+        Erscheint Mandant:innen in Schritt 02 zur Bestätigung. <code>{'{KANZLEI}'}</code> wird durch Ihren
+        Anzeigenamen ersetzt. Leer lassen = Standardtext verwenden.
+      </p>
+      <textarea
+        class="app-input"
+        name="vollmacht_template"
+        rows="6"
+        placeholder={defaultVollmacht}
+        style="font-family: var(--sans); resize: vertical; min-height: 140px;"
+      >{kanzlei.vollmacht_template ?? ''}</textarea>
+    </div>
+
+    <div class="onb-card" style="margin-bottom: 16px;">
+      <h2 class="serif onb-card-title">Honorar</h2>
+      <p class="onb-hint-text">
+        Werte werden in die Honorarvereinbarung (Schritt 04) eingesetzt. Standardwerte (250 €/Std., 500 € Vorschuss) gelten, wenn die Felder leer bleiben.
+      </p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Stundenhonorar</span>
+          <input
+            class="app-input"
+            type="text"
+            name="honorar_hourly"
+            maxlength="120"
+            value={kanzlei.honorar_hourly ?? ''}
+            placeholder="250,00 EUR netto je angefangener Stunde"
+          />
+        </label>
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Vorschuss</span>
+          <input
+            class="app-input"
+            type="text"
+            name="honorar_advance"
+            maxlength="120"
+            value={kanzlei.honorar_advance ?? ''}
+            placeholder="500,00 EUR"
+          />
+        </label>
+      </div>
+    </div>
+  </form>
+
+  <div class="onb-cta-row">
+    <a href="/app/onboarding/branding" class="btn-link">← Zurück</a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/app/onboarding/akten-typen" class="btn-link">Überspringen (Standard verwenden)</a>
+      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/vorlagen&quot;]').submit()" class="cta-button">
+        Speichern & weiter <span class="arrow">→</span>
+      </button>
+    </div>
+  </div>
+</OnboardingLayout>
+
+<style>
+  .onb-form { margin-bottom: 24px; }
+  .onb-card {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 24px 32px;
+  }
+  .onb-card-title {
+    font-size: 18px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .onb-hint-text {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+  .onb-cta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .btn-link {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px 0;
+  }
+  .btn-link:hover { color: var(--ink); }
+</style>

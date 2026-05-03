@@ -11,6 +11,9 @@ export type Kanzlei = {
   logo_r2_key: string | null;
   logo_mime_type: string | null;
   brand_color: string | null;
+  retention_years: number | null;
+  draft_retention_months: number | null;
+  onboarding_completed_at: number | null;
   created_at: number;
 };
 

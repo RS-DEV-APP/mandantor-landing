@@ -1,0 +1,132 @@
+---
+import OnboardingLayout from '../../../components/OnboardingLayout.astro';
+import { findKanzleiById } from '../../../lib/db';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+if (!kanzlei) return Astro.redirect('/app/login', 302);
+if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302);
+---
+<OnboardingLayout
+  step={3}
+  title="Eigenes Logo, eigene Farbe."
+  subtitle="Optional. Mandantor lässt sich dem Stil Ihrer Kanzlei anpassen, sodass Mandant:innen das Onboarding als ‚Ihres' wahrnehmen."
+>
+  <form method="post" action="/api/onboarding/branding" enctype="multipart/form-data" class="onb-card">
+    <div style="display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: flex-start;">
+      <div>
+        <span class="app-label-text" style="display: block; margin-bottom: 8px;">Aktuell</span>
+        {kanzlei.logo_r2_key ? (
+          <div class="onb-logo-preview">
+            <img src={`/api/kanzlei/${kanzlei.id}/logo`} alt="Logo" />
+          </div>
+        ) : (
+          <div class="onb-logo-empty">Kein Logo</div>
+        )}
+      </div>
+      <div>
+        <label class="app-label">
+          <span class="app-label-text">Logo (PNG, JPG, SVG, max. 200 KB)</span>
+          <input class="app-input" type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+        </label>
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Akzentfarbe (Hex, optional)</span>
+          <input
+            class="app-input"
+            type="text"
+            name="brand_color"
+            value={kanzlei.brand_color ?? ''}
+            placeholder="#B8956A"
+            pattern="#[0-9a-fA-F]{6}"
+            maxlength="7"
+            style="font-family: var(--mono); width: 160px;"
+          />
+        </label>
+      </div>
+    </div>
+    <p class="onb-fineprint">
+      Ohne Logo zeigt Mandantor das §-Symbol mit Ihrem Anzeigenamen. Sie können später jederzeit ändern.
+    </p>
+  </form>
+
+  <div class="onb-cta-row">
+    <a href="/app/onboarding/kanzlei" class="btn-link">← Zurück</a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/app/onboarding/vorlagen" class="btn-link">Überspringen</a>
+      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/branding&quot;]').submit()" class="cta-button">
+        Speichern & weiter <span class="arrow">→</span>
+      </button>
+    </div>
+  </div>
+</OnboardingLayout>
+
+<style>
+  .onb-card {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .onb-logo-preview {
+    border: 1px solid var(--rule);
+    padding: 16px;
+    background: #fff;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .onb-logo-preview img { max-width: 160px; max-height: 80px; }
+  .onb-logo-empty {
+    border: 1px dashed var(--rule);
+    padding: 24px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+  .onb-fineprint {
+    margin: 24px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+  .onb-cta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .cta-button {
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .btn-link {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px 0;
+  }
+  .btn-link:hover { color: var(--ink); }
+</style>

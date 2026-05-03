@@ -1,0 +1,115 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+
+interface Props {
+  step: number;
+  title: string;
+  subtitle?: string;
+  totalSteps?: number;
+}
+const { step, title, subtitle, totalSteps = 5 } = Astro.props;
+
+const stepLabels = ['Willkommen', 'Kanzlei', 'Branding', 'Vorlagen', 'Akten-Typen'];
+---
+<AppLayout title={`${title} — Onboarding`}>
+  <main class="onb-shell">
+    <header class="onb-header">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">
+          Onboarding · Schritt {step} von {totalSteps}
+        </span>
+      </span>
+      <h1 class="serif onb-title">{title}</h1>
+      {subtitle && <p class="onb-subtitle">{subtitle}</p>}
+    </header>
+
+    <ol class="onb-steps">
+      {stepLabels.map((label, idx) => {
+        const n = idx + 1;
+        const state = n < step ? 'done' : n === step ? 'active' : 'todo';
+        return (
+          <li class={`onb-step state-${state}`}>
+            <span class="onb-step-num">0{n}</span>
+            <span class="onb-step-label">{label}</span>
+          </li>
+        );
+      })}
+    </ol>
+
+    <slot />
+  </main>
+</AppLayout>
+
+<style>
+  .onb-shell {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 56px var(--gutter) 64px;
+  }
+  .onb-header {
+    margin-bottom: 32px;
+  }
+  .onb-title {
+    font-size: 36px;
+    margin: 12px 0 8px;
+    letter-spacing: -0.015em;
+  }
+  .onb-subtitle {
+    font-size: 16px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    max-width: 56ch;
+    margin: 0;
+  }
+
+  .onb-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 40px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 16px;
+  }
+  .onb-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    font-size: 12px;
+  }
+  .onb-step-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .onb-step-label {
+    color: var(--ink-2);
+  }
+  .onb-step.state-active {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .onb-step.state-active .onb-step-num,
+  .onb-step.state-active .onb-step-label {
+    color: var(--paper);
+  }
+  .onb-step.state-done {
+    background: #f5f3ee;
+  }
+  .onb-step.state-done .onb-step-label::before {
+    content: '✓ ';
+    color: var(--gold);
+  }
+
+  @media (max-width: 640px) {
+    .onb-steps { font-size: 11px; gap: 2px; }
+    .onb-step { padding: 4px 8px; }
+    .onb-step-label { display: none; }
+  }
+</style>

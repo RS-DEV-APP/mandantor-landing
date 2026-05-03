@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { consumeMagicLink, createSession, SESSION_COOKIE, SESSION_MAX_AGE } from '../../lib/auth';
 import { findUserByEmail, createKanzleiAdmin } from '../../lib/users';
 import { createPending2fa, PENDING_2FA_COOKIE, PENDING_2FA_MAX_AGE } from '../../lib/pending2fa';
+import { findKanzleiById } from '../../lib/db';
 
 export const prerender = false;
 
@@ -53,6 +54,12 @@ export const GET: APIRoute = async ({ url, request, locals, cookies, redirect })
     path: '/',
     maxAge: SESSION_MAX_AGE,
   });
+
+  // Beim ersten Login einer neuen Kanzlei: zum Onboarding statt Dashboard
+  const kanzlei = await findKanzleiById(env.DB, user.kanzlei_id);
+  if (kanzlei && !kanzlei.onboarding_completed_at) {
+    return redirect('/app/onboarding', 303);
+  }
 
   return redirect('/app/dashboard', 303);
 };

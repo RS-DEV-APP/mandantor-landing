@@ -9,8 +9,11 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const formData = await request.formData();
   const displayName = (formData.get('display_name') ?? '').toString().trim();
-  if (!displayName || displayName.length > 80) {
-    return redirect('/app/onboarding/kanzlei', 303);
+  if (!displayName) {
+    return redirect('/app/onboarding/kanzlei?error=' + encodeURIComponent('Bitte geben Sie einen Anzeigenamen ein.'), 303);
+  }
+  if (displayName.length > 80) {
+    return redirect('/app/onboarding/kanzlei?error=' + encodeURIComponent('Anzeigename ist zu lang (max. 80 Zeichen).'), 303);
   }
 
   await env.DB

@@ -12,6 +12,8 @@ if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
 
 const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
 if (!kanzlei) return Astro.redirect('/app/login', 302);
+// Konsistenz mit anderen Onboarding-Pages: wenn schon abgeschlossen, weiter zum Dashboard
+if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302);
 
 const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
 ---

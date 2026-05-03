@@ -23,7 +23,7 @@ const existingNames = new Set(existingTypen.map((t) => t.name.toLowerCase()));
   title="Welche Mandatsarten brauchen Sie?"
   subtitle="Wir legen für jede ausgewählte Mandatsart eine Vorlage an — mit eigener Vollmacht, Honorarsätzen und einer Liste der typischen Dokumente, die Mandant:innen mitliefern sollen. Sie können später jeden Typ einzeln anpassen."
 >
-  <form method="post" action="/api/onboarding/akten-typen" class="onb-form">
+  <form id="akten-typen-form" method="post" action="/api/onboarding/akten-typen" class="onb-form">
     <div class="onb-presets">
       {AKTEN_TYP_PRESETS.map((preset) => {
         const alreadyHave = existingNames.has(preset.name.toLowerCase());
@@ -55,7 +55,7 @@ const existingNames = new Set(existingTypen.map((t) => t.name.toLowerCase()));
     <a href="/app/onboarding/vorlagen" class="btn-link">← Zurück</a>
     <div style="display: flex; gap: 12px; align-items: center;">
       <a href="/app/onboarding/done" class="btn-link">Überspringen</a>
-      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/akten-typen&quot;]').submit()" class="cta-button">
+      <button type="submit" form="akten-typen-form" class="cta-button">
         Auswahl anlegen <span class="arrow">→</span>
       </button>
     </div>

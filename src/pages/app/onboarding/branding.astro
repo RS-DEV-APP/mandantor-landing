@@ -12,13 +12,19 @@ if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
 const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
 if (!kanzlei) return Astro.redirect('/app/login', 302);
 if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302);
+
+const error = new URL(Astro.request.url).searchParams.get('error');
 ---
 <OnboardingLayout
   step={3}
   title="Eigenes Logo, eigene Farbe."
   subtitle="Optional. Mandantor lässt sich dem Stil Ihrer Kanzlei anpassen, sodass Mandant:innen das Onboarding als ‚Ihres' wahrnehmen."
 >
-  <form method="post" action="/api/onboarding/branding" enctype="multipart/form-data" class="onb-card">
+  {error && (
+    <p style="background: #fdf0f0; border: 1px solid #e6c5c5; color: #8a3030; padding: 12px 16px; font-size: 14px; margin: 0 0 24px;">{error}</p>
+  )}
+
+  <form id="branding-form" method="post" action="/api/onboarding/branding" enctype="multipart/form-data" class="onb-card">
     <div style="display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: flex-start;">
       <div>
         <span class="app-label-text" style="display: block; margin-bottom: 8px;">Aktuell</span>
@@ -59,7 +65,7 @@ if (kanzlei.onboarding_completed_at) return Astro.redirect('/app/dashboard', 302
     <a href="/app/onboarding/kanzlei" class="btn-link">← Zurück</a>
     <div style="display: flex; gap: 12px; align-items: center;">
       <a href="/app/onboarding/vorlagen" class="btn-link">Überspringen</a>
-      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/branding&quot;]').submit()" class="cta-button">
+      <button type="submit" form="branding-form" class="cta-button">
         Speichern & weiter <span class="arrow">→</span>
       </button>
     </div>

@@ -18,20 +18,27 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const patch: { logo_r2_key?: string | null; logo_mime_type?: string | null; brand_color?: string | null } = {};
 
-  if (colorRaw && HEX_COLOR.test(colorRaw)) {
+  if (colorRaw) {
+    if (!HEX_COLOR.test(colorRaw)) {
+      return redirect('/app/onboarding/branding?error=' + encodeURIComponent('Akzentfarbe muss Hex-Format sein, z.B. #B8956A'), 303);
+    }
     patch.brand_color = colorRaw;
   }
 
   if (file instanceof File && file.size > 0) {
-    if (file.size <= MAX_LOGO_BYTES && ALLOWED_LOGO_MIME.has(file.type)) {
-      const ext = (file.name.split('.').pop() ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
-      const key = `branding/${session.kanzlei_id}/logo-${Date.now()}.${ext}`;
-      await env.UPLOADS.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type },
-      });
-      patch.logo_r2_key = key;
-      patch.logo_mime_type = file.type;
+    if (file.size > MAX_LOGO_BYTES) {
+      return redirect('/app/onboarding/branding?error=' + encodeURIComponent(`Logo ist zu groß (max. ${MAX_LOGO_BYTES / 1024} KB).`), 303);
     }
+    if (!ALLOWED_LOGO_MIME.has(file.type)) {
+      return redirect('/app/onboarding/branding?error=' + encodeURIComponent('Logo-Format nicht erlaubt — bitte PNG, JPG, SVG oder WebP.'), 303);
+    }
+    const ext = (file.name.split('.').pop() ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+    const key = `branding/${session.kanzlei_id}/logo-${Date.now()}.${ext}`;
+    await env.UPLOADS.put(key, file.stream(), {
+      httpMetadata: { contentType: file.type },
+    });
+    patch.logo_r2_key = key;
+    patch.logo_mime_type = file.type;
   }
 
   await setKanzleiBranding(env.DB, session.kanzlei_id, patch);

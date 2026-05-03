@@ -20,7 +20,7 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
   title="Vorlagen für Vollmacht und Honorar."
   subtitle="Wir liefern juristisch geprüfte Standardtexte, die Sie 1:1 verwenden können. Wenn Sie eigene Vorlagen haben, einfach hier eintragen."
 >
-  <form method="post" action="/api/onboarding/vorlagen" class="onb-form">
+  <form id="vorlagen-form" method="post" action="/api/onboarding/vorlagen" class="onb-form">
     <div class="onb-card" style="margin-bottom: 16px;">
       <h2 class="serif onb-card-title">Vollmacht-Text</h2>
       <p class="onb-hint-text">
@@ -72,7 +72,7 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
     <a href="/app/onboarding/branding" class="btn-link">← Zurück</a>
     <div style="display: flex; gap: 12px; align-items: center;">
       <a href="/app/onboarding/akten-typen" class="btn-link">Überspringen (Standard verwenden)</a>
-      <button type="button" onclick="document.querySelector('form[action=&quot;/api/onboarding/vorlagen&quot;]').submit()" class="cta-button">
+      <button type="submit" form="vorlagen-form" class="cta-button">
         Speichern & weiter <span class="arrow">→</span>
       </button>
     </div>

@@ -35,12 +35,17 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);
       const origin = new URL(request.url).origin;
       const inviteUrl = `${origin}/m/${akte.mandant_token}`;
+      const branding = kanzlei ? {
+        logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
+        accentColor: kanzlei.brand_color,
+      } : {};
       await sendReopenRequestEmail(
         env,
         akte.mandant_email,
         kanzlei?.display_name ?? 'Ihre Kanzlei',
         reason,
         inviteUrl,
+        branding,
       );
     } catch (err) {
       console.error('reopen mail failed', err);

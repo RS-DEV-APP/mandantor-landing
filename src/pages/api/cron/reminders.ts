@@ -62,8 +62,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
       continue;
     }
     const inviteUrl = `${origin}/m/${row.mandant_token}`;
+    const branding = {
+      logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
+      accentColor: kanzlei.brand_color,
+    };
     try {
-      await sendReminderEmail(env, row.mandant_email, kanzlei.display_name, inviteUrl);
+      await sendReminderEmail(env, row.mandant_email, kanzlei.display_name, inviteUrl, branding);
       await env.DB
         .prepare('UPDATE akte SET reminder_sent_at = ?1 WHERE id = ?2')
         .bind(now, row.id)

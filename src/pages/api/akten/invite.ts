@@ -31,9 +31,13 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const origin = new URL(request.url).origin;
   const inviteUrl = `${origin}/m/${akte.mandant_token}`;
+  const branding = {
+    logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
+    accentColor: kanzlei.brand_color,
+  };
 
   try {
-    await sendMandantInviteEmail(env, mandantEmail, kanzlei.display_name, inviteUrl, akte.case_label);
+    await sendMandantInviteEmail(env, mandantEmail, kanzlei.display_name, inviteUrl, akte.case_label, branding);
     // remember the email so we can send reminders later
     await setMandantContact(env.DB, akte.id, mandantEmail, akte.mandant_name);
   } catch (err) {

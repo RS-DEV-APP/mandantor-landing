@@ -83,7 +83,11 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       const mandantEmail = (mandantData.email ?? '').trim().toLowerCase();
       if (mandantEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mandantEmail)) {
         try {
-          await sendMandantConfirmationEmail(env, mandantEmail, kanzlei.display_name, akte.case_label);
+          const branding = {
+            logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
+            accentColor: kanzlei.brand_color,
+          };
+          await sendMandantConfirmationEmail(env, mandantEmail, kanzlei.display_name, akte.case_label, branding);
         } catch (err) {
           console.error('mandant confirmation failed', err);
         }

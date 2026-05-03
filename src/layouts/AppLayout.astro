@@ -106,4 +106,72 @@ const { title } = Astro.props;
   }
   .app-footer a:hover { color: var(--ink); }
   .app-footer .dot { opacity: 0.4; }
+
+  /* ── Mobile-Polish (Anwalt-App) ─────────────────────────────────── */
+  @media (max-width: 640px) {
+    .app-shell { padding: 32px 16px; }
+    .app-card { padding: 20px 16px; }
+
+    /* iOS auto-zoom auf input deaktivieren */
+    .app-input { font-size: 16px !important; padding: 12px 14px; }
+
+    /* Two-column-Inline-Grids stack vertikal — wir nutzen Attribute-Selektoren,
+       weil sehr viele Pages die Grids inline mit style="..." setzen. */
+    [style*="grid-template-columns: 1fr 1fr"],
+    [style*="grid-template-columns: 2fr 1fr"],
+    [style*="grid-template-columns: 1fr 2fr"],
+    [style*="grid-template-columns: 200px 1fr"],
+    [style*="grid-template-columns: 240px 1fr"],
+    [style*="grid-template-columns: 120px 1fr"],
+    [style*="grid-template-columns: 60px 1fr auto"] {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+
+    /* Header-Layouts mit nav buttons brechen um */
+    header[style*="justify-content: space-between"] {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 16px !important;
+    }
+    header[style*="justify-content: space-between"] > div:last-child {
+      width: 100%;
+    }
+
+    /* CTA-Rows (Onboarding, Account, Settings) brechen um */
+    [class*="cta-row"], [class*="cta_row"] {
+      flex-direction: column-reverse !important;
+      align-items: stretch !important;
+      gap: 12px !important;
+    }
+    [class*="cta-row"] > * { width: 100%; text-align: center; }
+    [class*="cta-row"] > * > * { width: auto; }
+
+    /* H1 in Headers etwas kleiner */
+    h1.serif { font-size: 28px !important; line-height: 1.15 !important; }
+    h2.serif { font-size: 19px !important; }
+
+    /* Tab-Toggle (Aktiv/Archiv) kompakter */
+    .tab { padding: 6px 10px !important; font-size: 11px !important; }
+
+    /* Stat-Card Grid (Account-Übersicht) */
+    [style*="grid-template-columns: repeat(auto-fit"] {
+      grid-template-columns: 1fr 1fr !important;
+    }
+
+    /* Tables / file rows scrollen horizontal nicht — innerlich stacken */
+    .file-row {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Step-Nav Onboarding / Mandant-Wizard horizontal scrollbar */
+    .onb-steps, .step-nav ol {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      flex-wrap: nowrap !important;
+    }
+    .onb-steps::-webkit-scrollbar, .step-nav ol::-webkit-scrollbar { display: none; }
+  }
 </style>

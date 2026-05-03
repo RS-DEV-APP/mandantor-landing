@@ -169,6 +169,13 @@ p { margin: 0; text-wrap: pretty; }
   }
   .container { padding: 0 var(--gutter); }
 }
+@media (max-width: 480px) {
+  :root {
+    --gutter: 16px;
+    --fs-h1: 36px;
+    --fs-h2: 24px;
+  }
+}
 
 /* Legal pages */
 .legal {

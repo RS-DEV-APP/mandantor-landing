@@ -143,4 +143,12 @@ const lastReviewed = '2. Mai 2026';
     .status-grid { grid-template-columns: 1fr; gap: 32px; }
     .status-milestone { grid-template-columns: 110px 16px 1fr; gap: 12px; }
   }
+
+  @media (max-width: 480px) {
+    .status { padding: 48px 0; }
+    .status-author { margin-top: 20px; }
+    .status-milestone { grid-template-columns: 1fr; gap: 4px; padding: 12px 0; }
+    .status-dot { display: none; }
+    .status-date { color: var(--muted); }
+  }
 </style>

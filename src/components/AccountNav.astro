@@ -1,6 +1,6 @@
 ---
 interface Props {
-  active: 'overview' | 'profile' | 'team' | 'security' | 'billing' | 'danger';
+  active: 'overview' | 'profile' | 'team' | 'security' | 'billing' | 'webhooks' | 'danger';
 }
 const { active } = Astro.props;
 
@@ -10,6 +10,7 @@ const items = [
   { key: 'team', href: '/app/account/team', label: 'Team' },
   { key: 'security', href: '/app/account/security', label: 'Sicherheit' },
   { key: 'billing', href: '/app/account/billing', label: 'Abrechnung' },
+  { key: 'webhooks', href: '/app/account/webhooks', label: 'Webhooks' },
   { key: 'danger', href: '/app/account/danger', label: 'Konto löschen' },
 ];
 ---

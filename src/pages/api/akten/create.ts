@@ -4,6 +4,7 @@ import { findAktenTypById } from '../../../lib/akten_typ';
 import { getSubscription, countActiveAkten } from '../../../lib/subscription';
 import { PLAN_LIMITS } from '../../../lib/stripe';
 import { appendAudit, buildAuditContext } from '../../../lib/audit';
+import { dispatchEvent } from '../../../lib/webhooks';
 
 export const prerender = false;
 
@@ -77,6 +78,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     subjectType: 'akte',
     subjectId: akte.id,
     payload: { case_label: caseLabel, akten_typ_id: aktenTypId, mandant_email: mandantEmail, mandant_name: mandantName },
+  });
+
+  await dispatchEvent(env.DB, locals.runtime?.ctx, session.kanzlei_id, 'akte.created', {
+    akte_id: akte.id,
+    case_label: caseLabel,
+    akten_typ_id: aktenTypId,
+    mandant_email: mandantEmail,
+    mandant_name: mandantName,
+    created_at: Math.floor(Date.now() / 1000),
   });
 
   return redirect(`/app/akten/${akte.id}`, 303);

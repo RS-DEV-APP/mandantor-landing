@@ -343,4 +343,20 @@ import Footer from '../components/Footer.astro';
     color: var(--ink-2);
     margin: 0;
   }
+
+  @media (max-width: 480px) {
+    .pricing-page { padding: 80px 0 48px; }
+    .pricing-header { margin-bottom: 40px; }
+    .pricing-title { font-size: 32px; }
+    .pricing-lead { font-size: 16px; }
+    .tier-grid { gap: 16px; margin-bottom: 56px; }
+    .tier { padding: 24px 20px; }
+    .tier-badge { left: 20px; }
+    .tier-name { font-size: 24px; }
+    .tier-price-amount { font-size: 36px; }
+    .enterprise { padding: 32px 0; margin-bottom: 48px; }
+    .enterprise-inner { flex-direction: column; align-items: flex-start; }
+    .enterprise-title { font-size: 24px; }
+    .faq-title { font-size: 24px; margin-bottom: 24px; }
+  }
 </style>

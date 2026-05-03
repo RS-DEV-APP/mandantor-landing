@@ -1,4 +1,5 @@
 import { newId } from './ids';
+import type { StepSignatureLevels } from './skribble';
 
 export type AktenTyp = {
   id: string;
@@ -10,6 +11,7 @@ export type AktenTyp = {
   honorar_advance: string | null;
   dsgvo_template: string | null;
   file_hints_json: string | null;
+  signature_levels_json: string | null;
   created_at: number;
 };
 
@@ -20,11 +22,22 @@ export type AktenTypInput = {
   honorar_advance: string | null;
   dsgvo_template: string | null;
   file_hints: string[];
+  signature_levels: StepSignatureLevels;
 };
 
 function serializeFileHints(hints: string[]): string | null {
   const cleaned = hints.map((h) => h.trim()).filter((h) => h.length > 0).slice(0, 20);
   return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
+}
+
+function serializeSignatureLevels(levels: StepSignatureLevels): string | null {
+  // Wir speichern nur Steps mit Non-Default. Default = 'EES' für alle.
+  const out: Record<string, string> = {};
+  for (const k of [2, 3, 4] as const) {
+    const v = levels[k];
+    if (v && v !== 'EES') out[String(k)] = v;
+  }
+  return Object.keys(out).length > 0 ? JSON.stringify(out) : null;
 }
 
 export function parseFileHints(json: string | null): string[] {
@@ -80,8 +93,8 @@ export async function createAktenTyp(
   await db
     .prepare(
       `INSERT INTO akten_typ
-        (id, kanzlei_id, name, sort_order, vollmacht_template, honorar_hourly, honorar_advance, dsgvo_template, file_hints_json)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+        (id, kanzlei_id, name, sort_order, vollmacht_template, honorar_hourly, honorar_advance, dsgvo_template, file_hints_json, signature_levels_json)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
     )
     .bind(
       id,
@@ -93,6 +106,7 @@ export async function createAktenTyp(
       input.honorar_advance,
       input.dsgvo_template,
       serializeFileHints(input.file_hints),
+      serializeSignatureLevels(input.signature_levels),
     )
     .run();
 
@@ -115,8 +129,9 @@ export async function updateAktenTyp(
          honorar_hourly = ?3,
          honorar_advance = ?4,
          dsgvo_template = ?5,
-         file_hints_json = ?6
-       WHERE id = ?7 AND kanzlei_id = ?8`,
+         file_hints_json = ?6,
+         signature_levels_json = ?7
+       WHERE id = ?8 AND kanzlei_id = ?9`,
     )
     .bind(
       input.name,
@@ -125,6 +140,7 @@ export async function updateAktenTyp(
       input.honorar_advance,
       input.dsgvo_template,
       serializeFileHints(input.file_hints),
+      serializeSignatureLevels(input.signature_levels),
       id,
       kanzleiId,
     )

@@ -5,8 +5,20 @@ import {
   findAktenTypById,
   type AktenTypInput,
 } from '../../../../lib/akten_typ';
+import type { StepSignatureLevels, SignatureLevel } from '../../../../lib/skribble';
 
 export const prerender = false;
+
+function readSignatureLevels(formData: FormData): StepSignatureLevels {
+  const out: StepSignatureLevels = {};
+  for (const k of [2, 3, 4] as const) {
+    const raw = (formData.get(`sig_step_${k}`) ?? '').toString().trim();
+    if (raw === 'EES' || raw === 'FES' || raw === 'QES') {
+      out[k] = raw as SignatureLevel;
+    }
+  }
+  return out;
+}
 
 function readInput(formData: FormData): AktenTypInput | { error: string } {
   const name = (formData.get('name') ?? '').toString().trim();
@@ -26,6 +38,7 @@ function readInput(formData: FormData): AktenTypInput | { error: string } {
     honorar_advance: ((formData.get('honorar_advance') ?? '').toString().trim()) || null,
     dsgvo_template: ((formData.get('dsgvo_template') ?? '').toString().trim()) || null,
     file_hints: fileHints,
+    signature_levels: readSignatureLevels(formData),
   };
 }
 

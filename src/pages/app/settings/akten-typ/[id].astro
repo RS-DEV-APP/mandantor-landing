@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import { findAktenTypById, parseFileHints } from '../../../../lib/akten_typ';
+import { parseSignatureLevels, effectiveLevel } from '../../../../lib/skribble';
 
 export const prerender = false;
 
@@ -19,6 +20,22 @@ const url = new URL(Astro.request.url);
 const error = url.searchParams.get('error');
 
 const fileHints = typ ? parseFileHints(typ.file_hints_json) : [];
+const sigLevels = typ ? parseSignatureLevels(typ.signature_levels_json) : {};
+const sigStep2 = effectiveLevel(sigLevels, 2);
+const sigStep3 = effectiveLevel(sigLevels, 3);
+const sigStep4 = effectiveLevel(sigLevels, 4);
+
+const sigStepRows = [
+  { stepNo: 2, label: 'Schritt 2 — Vollmacht', current: sigStep2 },
+  { stepNo: 3, label: 'Schritt 3 — Datenschutz', current: sigStep3 },
+  { stepNo: 4, label: 'Schritt 4 — Honorar', current: sigStep4 },
+] as const;
+
+const sigOptions = [
+  { value: 'EES', label: 'EES — Einfache elektronische Signatur (Standard)' },
+  { value: 'FES', label: 'FES — Fortgeschrittene Signatur' },
+  { value: 'QES', label: 'QES — Qualifizierte elektronische Signatur (z.B. § 80 ZPO)' },
+] as const;
 
 const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
 
@@ -87,6 +104,26 @@ const headline = isNew ? 'Neuer Akten-Typ' : `Akten-Typ: ${typ!.name}`;
             <span class="app-label-text">Vorschuss</span>
             <input class="app-input" type="text" name="honorar_advance" maxlength="120" value={typ?.honorar_advance ?? ''} placeholder="z. B. 750,00 EUR" />
           </label>
+        </div>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Signatur-Niveau pro Schritt</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Wenn nichts geändert wird, gilt für alle Schritte die einfache elektronische Signatur (EES, eIDAS Art. 25).
+          QES wird derzeit als Hinweis im Mandant-Wizard angezeigt; aktiv signiert wird sobald Skribble konfiguriert ist.
+        </p>
+        <div style="display: grid; gap: 12px;">
+          {sigStepRows.map((row) => (
+            <label class="app-label" style="margin: 0; display: grid; grid-template-columns: 220px 1fr; align-items: center; gap: 16px;">
+              <span class="app-label-text" style="margin: 0;">{row.label}</span>
+              <select class="app-input" name={`sig_step_${row.stepNo}`}>
+                {sigOptions.map((opt) => (
+                  <option value={opt.value} selected={row.current === opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          ))}
         </div>
       </div>
 

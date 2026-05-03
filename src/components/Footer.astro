@@ -115,4 +115,9 @@ import Wordmark from './Wordmark.astro';
       gap: 8px;
     }
   }
+
+  @media (max-width: 480px) {
+    .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+    .footer-base { font-size: 11px; }
+  }
 </style>

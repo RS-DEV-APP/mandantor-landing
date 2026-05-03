@@ -4,6 +4,7 @@ import { findKanzleiById } from '../../../lib/db';
 import { listSteps, listFiles, markSubmitted, saveStep } from '../../../lib/mandant';
 import { sendSubmissionNotificationEmail, sendMandantConfirmationEmail } from '../../../lib/mail';
 import { appendAudit } from '../../../lib/audit';
+import { dispatchEvent } from '../../../lib/webhooks';
 
 export const prerender = false;
 
@@ -71,6 +72,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   // Mail-Versand: Fehler nicht propagieren, Submit war ja erfolgreich.
   const mandantData = extractStep1(steps);
   const mandantName = buildMandantName(mandantData);
+
+  await dispatchEvent(env.DB, locals.runtime?.ctx, akte.kanzlei_id, 'akte.submitted', {
+    akte_id: akte.id,
+    case_label: akte.case_label,
+    mandant_name: mandantName,
+    mandant_email: (mandantData.email ?? '').trim().toLowerCase() || null,
+    file_count: files.length,
+    submitted_at: Math.floor(Date.now() / 1000),
+  });
 
   try {
     const kanzlei = await findKanzleiById(env.DB, akte.kanzlei_id);

@@ -1,0 +1,260 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import AccountNav from '../../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../../lib/db';
+import { findUserById } from '../../../../lib/users';
+import { listWebhooks, parseEvents, ALL_WEBHOOK_EVENTS } from '../../../../lib/webhooks';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const me = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !me) return Astro.redirect('/app/login', 302);
+
+const isAdmin = me.role === 'admin';
+const endpoints = await listWebhooks(env.DB, kanzlei.id);
+
+const url = new URL(Astro.request.url);
+const createdId = url.searchParams.get('created');
+const deleted = url.searchParams.get('deleted');
+const tested = url.searchParams.get('tested');
+const testOk = url.searchParams.get('test_ok') === '1';
+const testStatus = url.searchParams.get('test_status');
+const testError = url.searchParams.get('test_error');
+const error = url.searchParams.get('error');
+
+const justCreated = createdId ? endpoints.find((e) => e.id === createdId) ?? null : null;
+
+const fmt = (ts: number | null) => {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  return d.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+type StatusKind = 'never' | 'ok' | 'fail';
+function statusOf(ep: { last_success_at: number | null; last_failure_at: number | null }): StatusKind {
+  const s = ep.last_success_at ?? 0;
+  const f = ep.last_failure_at ?? 0;
+  if (s === 0 && f === 0) return 'never';
+  return s >= f ? 'ok' : 'fail';
+}
+
+const eventLabels: Record<string, string> = {
+  'akte.created': 'Akte angelegt',
+  'akte.submitted': 'Mandant eingereicht',
+  'akte.reopened': 'Akte zurückgegeben',
+};
+---
+<AppLayout title="Webhooks — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Webhooks</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Webhooks</h1>
+      <p style="font-size: 14px; color: var(--muted);">Drittsysteme über Akten-Lifecycle-Ereignisse benachrichtigen.</p>
+    </header>
+
+    <AccountNav active="webhooks" />
+
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+    {deleted && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f5f3ee; border: 1px solid #d8d2c2; font-size: 14px;">
+        Webhook gelöscht.
+      </p>
+    )}
+    {tested && (
+      testOk ? (
+        <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+          ✓ Test gesendet — HTTP {testStatus}
+        </p>
+      ) : (
+        <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+          ✗ Test fehlgeschlagen{testStatus ? ` — HTTP ${testStatus}` : ''}{testError ? ` (${testError})` : ''}
+        </p>
+      )
+    )}
+
+    {justCreated && (
+      <div class="app-card" style="margin-bottom: 24px; border-color: var(--gold); background: #fdf8ec;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Webhook angelegt — Signing-Secret kopieren</h2>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">
+          Dieses Secret wird <strong>nur jetzt einmal angezeigt</strong>. Speichern Sie es in Ihrem Drittsystem,
+          danach ist es nicht mehr abrufbar (zur Rotation: löschen + neu anlegen).
+        </p>
+        <code style="display: block; padding: 12px; background: var(--paper); border: 1px solid var(--rule); font-family: var(--mono); font-size: 12px; word-break: break-all; user-select: all;">{justCreated.signing_secret}</code>
+        <p style="font-size: 12px; color: var(--muted); margin-top: 12px;">
+          URL: <code style="font-family: var(--mono); font-size: 12px;">{justCreated.url}</code>
+        </p>
+      </div>
+    )}
+
+    {isAdmin && (
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Neuen Webhook anlegen</h2>
+        <form method="post" action="/api/account/webhooks/create" style="display: grid; gap: 14px;">
+          <label class="app-label" style="margin: 0;">
+            <span class="app-label-text">Endpoint-URL (HTTPS)</span>
+            <input class="app-input" type="url" name="url" required placeholder="https://hooks.beispiel.de/mandantor" pattern="https://.*" />
+          </label>
+          <label class="app-label" style="margin: 0;">
+            <span class="app-label-text">Beschreibung (optional)</span>
+            <input class="app-input" type="text" name="description" maxlength="200" placeholder="z.B. Datev-Sync, Zapier-Integration …" />
+          </label>
+          <fieldset style="border: 1px solid var(--rule); padding: 12px 16px; margin: 0;">
+            <legend style="font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 6px;">Events</legend>
+            {ALL_WEBHOOK_EVENTS.map((ev) => (
+              <label style="display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-size: 14px;">
+                <input type="checkbox" name="events" value={ev} checked />
+                <span><code style="font-family: var(--mono); font-size: 12px;">{ev}</code> — {eventLabels[ev] ?? ev}</span>
+              </label>
+            ))}
+          </fieldset>
+          <div>
+            <button type="submit" class="cta-button">Webhook anlegen</button>
+          </div>
+        </form>
+      </div>
+    )}
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Konfigurierte Endpoints</h2>
+      {endpoints.length === 0 ? (
+        <p style="font-size: 14px; color: var(--muted);">Noch keine Webhooks konfiguriert.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {endpoints.map((ep) => {
+            const events = parseEvents(ep);
+            const status = statusOf(ep);
+            return (
+              <li style="border-bottom: 1px solid var(--rule); padding: 16px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 240px;">
+                    <div style="font-size: 14px; font-family: var(--mono); word-break: break-all;">{ep.url}</div>
+                    {ep.description && (
+                      <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">{ep.description}</div>
+                    )}
+                    <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+                      Events: {events.map((e) => <code style="font-family: var(--mono); font-size: 11px; margin-right: 6px;">{e}</code>)}
+                    </div>
+                    <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+                      {status === 'ok' && (<span style="color: #2d6a2d;">● Letzter Versand erfolgreich</span>)}
+                      {status === 'fail' && (<span style="color: #b23a3a;">● Letzter Versand fehlgeschlagen</span>)}
+                      {status === 'never' && (<span>○ Noch nicht getestet</span>)}
+                      {ep.last_success_at && <> · Erfolg: {fmt(ep.last_success_at)}</>}
+                      {ep.last_failure_at && <> · Fehler: {fmt(ep.last_failure_at)}</>}
+                      {ep.last_status_code && <> · HTTP {ep.last_status_code}</>}
+                    </div>
+                    {ep.last_error && status === 'fail' && (
+                      <div style="font-size: 12px; color: #b23a3a; margin-top: 4px; font-family: var(--mono);">{ep.last_error}</div>
+                    )}
+                  </div>
+                  {isAdmin && (
+                    <div style="display: flex; gap: 8px;">
+                      <form method="post" action="/api/account/webhooks/test" style="margin: 0;">
+                        <input type="hidden" name="webhook_id" value={ep.id} />
+                        <button type="submit" class="ghost-button">Test senden</button>
+                      </form>
+                      <form method="post" action="/api/account/webhooks/delete" onsubmit="return confirm('Webhook wirklich löschen? Das Secret kann nicht wiederhergestellt werden.')" style="margin: 0;">
+                        <input type="hidden" name="webhook_id" value={ep.id} />
+                        <button type="submit" class="ghost-danger">Löschen</button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+
+    <div class="app-card">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">Signatur-Verifikation</h2>
+      <p style="font-size: 14px; margin-bottom: 12px;">
+        Jeder Request enthält den Header <code style="font-family: var(--mono); font-size: 13px;">X-Mandantor-Signature: t=&lt;ts&gt;,v1=&lt;hex&gt;</code>.
+        Signiert wird <code style="font-family: var(--mono); font-size: 13px;">&#36;&#123;ts&#125;.&#36;&#123;rawBody&#125;</code> mit Ihrem Signing-Secret als HMAC-SHA256-Key.
+      </p>
+      <h3 style="font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px;">Node.js</h3>
+      <pre style="background: var(--paper); border: 1px solid var(--rule); padding: 12px; font-family: var(--mono); font-size: 12px; overflow-x: auto;"><code>{`import crypto from 'node:crypto';
+
+function verify(rawBody, header, secret) {
+  const m = /^t=(\\d+),v1=([0-9a-f]+)$/.exec(header);
+  if (!m) return false;
+  const [, t, sig] = m;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(\`\${t}.\${rawBody}\`)
+    .digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}`}</code></pre>
+      <h3 style="font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px;">Python</h3>
+      <pre style="background: var(--paper); border: 1px solid var(--rule); padding: 12px; font-family: var(--mono); font-size: 12px; overflow-x: auto;"><code>{`import hmac, hashlib, re
+
+def verify(raw_body: bytes, header: str, secret: str) -> bool:
+    m = re.match(r"^t=(\\d+),v1=([0-9a-f]+)$", header)
+    if not m: return False
+    t, sig = m.groups()
+    expected = hmac.new(secret.encode(), f"{t}.".encode() + raw_body,
+                        hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, expected)`}</code></pre>
+      <p style="font-size: 13px; color: var(--muted); margin-top: 12px;">
+        v1: Fire-and-forget — Endpoints werden bei Fehlern <strong>nicht automatisch wiederholt</strong>.
+        Nutzen Sie den „Test senden"-Button oder leiten Sie das Event manuell erneut aus.
+        Timeout pro Versand: 10 Sekunden.
+      </p>
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .ghost-button {
+    padding: 8px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ghost-button:hover { background: #f5f3ee; }
+  .ghost-danger {
+    padding: 8px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: #b23a3a;
+    background: var(--paper);
+    border: 1px solid #e6c5c5;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ghost-danger:hover { background: #fdf0f0; }
+</style>

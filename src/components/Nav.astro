@@ -71,6 +71,12 @@ import Wordmark from './Wordmark.astro';
     .nav-link-login { display: inline; padding-left: 0; border-left: 0; font-size: 13px; }
     .nav-cta { padding: 8px 14px; font-size: 13px; }
   }
+
+  @media (max-width: 480px) {
+    .nav-inner { height: 60px; }
+    .nav-link-login { display: none; }
+    .nav-cta { padding: 7px 12px; font-size: 12.5px; }
+  }
 </style>
 
 <script>

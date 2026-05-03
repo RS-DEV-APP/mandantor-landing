@@ -28,6 +28,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       honorar_advance: preset.honorar_advance ?? null,
       dsgvo_template: preset.dsgvo_template ?? null,
       file_hints: preset.file_hints,
+      signature_levels: {},
     });
 
     await appendAudit(env.DB, env.SECRET_KEY, session.kanzlei_id, buildAuditContext(request, session), {

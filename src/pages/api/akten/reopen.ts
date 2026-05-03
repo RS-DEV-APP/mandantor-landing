@@ -3,6 +3,7 @@ import { findAkteById, reopenAkte } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { sendReopenRequestEmail } from '../../../lib/mail';
 import { appendAudit, buildAuditContext } from '../../../lib/audit';
+import { dispatchEvent } from '../../../lib/webhooks';
 
 export const prerender = false;
 
@@ -28,6 +29,13 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     subjectType: 'akte',
     subjectId: akteId,
     payload: { reason, case_label: akte.case_label },
+  });
+
+  await dispatchEvent(env.DB, locals.runtime?.ctx, session.kanzlei_id, 'akte.reopened', {
+    akte_id: akteId,
+    case_label: akte.case_label,
+    reason,
+    reopened_at: Math.floor(Date.now() / 1000),
   });
 
   if (akte.mandant_email) {

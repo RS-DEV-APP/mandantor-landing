@@ -1,5 +1,6 @@
 import { newId } from './ids';
 import type { StepSignatureLevels } from './skribble';
+import { serializePhases } from './phases';
 
 export type AktenTyp = {
   id: string;
@@ -10,8 +11,12 @@ export type AktenTyp = {
   honorar_hourly: string | null;
   honorar_advance: string | null;
   dsgvo_template: string | null;
+  widerruf_template: string | null;
   file_hints_json: string | null;
   signature_levels_json: string | null;
+  include_sachverhalt: number;
+  include_widerruf: number;
+  phases_json: string | null;
   created_at: number;
 };
 
@@ -21,8 +26,12 @@ export type AktenTypInput = {
   honorar_hourly: string | null;
   honorar_advance: string | null;
   dsgvo_template: string | null;
+  widerruf_template: string | null;
   file_hints: string[];
   signature_levels: StepSignatureLevels;
+  include_sachverhalt: boolean;
+  include_widerruf: boolean;
+  phases: string[];
 };
 
 function serializeFileHints(hints: string[]): string | null {
@@ -93,8 +102,8 @@ export async function createAktenTyp(
   await db
     .prepare(
       `INSERT INTO akten_typ
-        (id, kanzlei_id, name, sort_order, vollmacht_template, honorar_hourly, honorar_advance, dsgvo_template, file_hints_json, signature_levels_json)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
+        (id, kanzlei_id, name, sort_order, vollmacht_template, honorar_hourly, honorar_advance, dsgvo_template, widerruf_template, file_hints_json, signature_levels_json, include_sachverhalt, include_widerruf, phases_json)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
     )
     .bind(
       id,
@@ -105,8 +114,12 @@ export async function createAktenTyp(
       input.honorar_hourly,
       input.honorar_advance,
       input.dsgvo_template,
+      input.widerruf_template,
       serializeFileHints(input.file_hints),
       serializeSignatureLevels(input.signature_levels),
+      input.include_sachverhalt ? 1 : 0,
+      input.include_widerruf ? 1 : 0,
+      serializePhases(input.phases),
     )
     .run();
 
@@ -129,9 +142,13 @@ export async function updateAktenTyp(
          honorar_hourly = ?3,
          honorar_advance = ?4,
          dsgvo_template = ?5,
-         file_hints_json = ?6,
-         signature_levels_json = ?7
-       WHERE id = ?8 AND kanzlei_id = ?9`,
+         widerruf_template = ?6,
+         file_hints_json = ?7,
+         signature_levels_json = ?8,
+         include_sachverhalt = ?9,
+         include_widerruf = ?10,
+         phases_json = ?11
+       WHERE id = ?12 AND kanzlei_id = ?13`,
     )
     .bind(
       input.name,
@@ -139,8 +156,12 @@ export async function updateAktenTyp(
       input.honorar_hourly,
       input.honorar_advance,
       input.dsgvo_template,
+      input.widerruf_template,
       serializeFileHints(input.file_hints),
       serializeSignatureLevels(input.signature_levels),
+      input.include_sachverhalt ? 1 : 0,
+      input.include_widerruf ? 1 : 0,
+      serializePhases(input.phases),
       id,
       kanzleiId,
     )

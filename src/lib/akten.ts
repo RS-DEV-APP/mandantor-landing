@@ -1,4 +1,5 @@
 import { newId, newToken } from './ids';
+import { type Lang, normalizeLang } from './i18n';
 
 export type Akte = {
   id: string;
@@ -12,9 +13,23 @@ export type Akte = {
   reminder_sent_at: number | null;
   reopened_at: number | null;
   reopen_reason: string | null;
+  lang: string;
+  intake_source: string;
+  ai_summary: string | null;
+  ai_sentiment: string | null;
+  ai_analyzed_at: number | null;
+  ai_input_tokens: number | null;
+  ai_output_tokens: number | null;
+  ai_model: string | null;
+  current_phase: number | null;
+  phase_updated_at: number | null;
   created_at: number;
   submitted_at: number | null;
 };
+
+export function akteLang(akte: { lang: string }): Lang {
+  return normalizeLang(akte.lang);
+}
 
 export async function setMandantContact(
   db: D1Database,
@@ -50,14 +65,17 @@ export async function createAkte(
   kanzleiId: string,
   caseLabel: string | null,
   aktenTypId: string | null = null,
+  lang: Lang = 'de',
+  intakeSource: 'lawyer' | 'public' = 'lawyer',
 ): Promise<Akte> {
   const id = newId();
   const mandantToken = newToken();
+  const initialStatus = intakeSource === 'public' ? 'in_progress' : 'draft';
   await db
     .prepare(
-      'INSERT INTO akte (id, kanzlei_id, mandant_token, case_label, status, akten_typ_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+      'INSERT INTO akte (id, kanzlei_id, mandant_token, case_label, status, akten_typ_id, lang, intake_source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)',
     )
-    .bind(id, kanzleiId, mandantToken, caseLabel ?? null, 'draft', aktenTypId)
+    .bind(id, kanzleiId, mandantToken, caseLabel ?? null, initialStatus, aktenTypId, lang, intakeSource)
     .run();
 
   const row = await db
@@ -107,6 +125,28 @@ export async function findAkteById(
     .bind(id, kanzleiId)
     .first<Akte>();
   return row ?? null;
+}
+
+export async function listAktenByIds(
+  db: D1Database,
+  kanzleiId: string,
+  ids: string[],
+  options: { includeArchived?: boolean } = {},
+): Promise<Akte[]> {
+  if (ids.length === 0) return [];
+  // SQLite-Limit: max ~100 Variablen — ids ist auf 100 limitiert in searchAkten().
+  const placeholders = ids.map((_, i) => `?${i + 2}`).join(', ');
+  const archivedFilter = options.includeArchived ? '' : `AND status != 'archived'`;
+  const result = await db
+    .prepare(
+      `SELECT * FROM akte
+       WHERE kanzlei_id = ?1 ${archivedFilter}
+         AND id IN (${placeholders})
+       ORDER BY created_at DESC`,
+    )
+    .bind(kanzleiId, ...ids)
+    .all<Akte>();
+  return result.results ?? [];
 }
 
 export async function findAkteByMandantToken(

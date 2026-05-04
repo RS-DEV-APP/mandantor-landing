@@ -8,12 +8,16 @@ export type WebhookEvent =
   | 'akte.created'
   | 'akte.submitted'
   | 'akte.reopened'
+  | 'akte.phase_changed'
+  | 'akte.message_from_mandant'
   | 'webhook.test';
 
 export const ALL_WEBHOOK_EVENTS: WebhookEvent[] = [
   'akte.created',
   'akte.submitted',
   'akte.reopened',
+  'akte.phase_changed',
+  'akte.message_from_mandant',
 ];
 
 export type WebhookEndpoint = {

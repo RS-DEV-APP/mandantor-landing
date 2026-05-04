@@ -14,8 +14,23 @@ export type Kanzlei = {
   retention_years: number | null;
   draft_retention_months: number | null;
   onboarding_completed_at: number | null;
+  impressum_url: string | null;
+  datenschutz_url: string | null;
+  public_intake_enabled: number;
+  public_intake_other_enabled: number;
   created_at: number;
 };
+
+export type KanzleiLinks = {
+  impressum_url: string | null;
+  datenschutz_url: string | null;
+};
+
+export function pickKanzleiLinks(k: Kanzlei | null | undefined): KanzleiLinks | null {
+  if (!k) return null;
+  if (!k.impressum_url && !k.datenschutz_url) return null;
+  return { impressum_url: k.impressum_url, datenschutz_url: k.datenschutz_url };
+}
 
 export async function setKanzleiBranding(
   db: D1Database,
@@ -48,6 +63,38 @@ export async function findKanzleiById(db: D1Database, id: string): Promise<Kanzl
     .bind(id)
     .first<Kanzlei>();
   return row ?? null;
+}
+
+export async function findKanzleiBySlug(db: D1Database, slug: string): Promise<Kanzlei | null> {
+  const row = await db
+    .prepare('SELECT * FROM kanzlei WHERE slug = ?1 LIMIT 1')
+    .bind(slug)
+    .first<Kanzlei>();
+  return row ?? null;
+}
+
+export async function setKanzleiLinks(
+  db: D1Database,
+  kanzleiId: string,
+  patch: { impressum_url: string | null; datenschutz_url: string | null },
+): Promise<void> {
+  await db
+    .prepare('UPDATE kanzlei SET impressum_url = ?1, datenschutz_url = ?2 WHERE id = ?3')
+    .bind(patch.impressum_url, patch.datenschutz_url, kanzleiId)
+    .run();
+}
+
+export async function setPublicIntakeSettings(
+  db: D1Database,
+  kanzleiId: string,
+  patch: { public_intake_enabled: 0 | 1; public_intake_other_enabled: 0 | 1 },
+): Promise<void> {
+  await db
+    .prepare(
+      'UPDATE kanzlei SET public_intake_enabled = ?1, public_intake_other_enabled = ?2 WHERE id = ?3',
+    )
+    .bind(patch.public_intake_enabled, patch.public_intake_other_enabled, kanzleiId)
+    .run();
 }
 
 export async function createKanzlei(db: D1Database, email: string): Promise<Kanzlei> {
@@ -95,6 +142,8 @@ export async function updateKanzleiSettings(
     vollmacht_template: string | null;
     honorar_hourly: string | null;
     honorar_advance: string | null;
+    impressum_url: string | null;
+    datenschutz_url: string | null;
   },
 ): Promise<void> {
   await db
@@ -103,14 +152,18 @@ export async function updateKanzleiSettings(
        SET display_name = ?1,
            vollmacht_template = ?2,
            honorar_hourly = ?3,
-           honorar_advance = ?4
-       WHERE id = ?5`,
+           honorar_advance = ?4,
+           impressum_url = ?5,
+           datenschutz_url = ?6
+       WHERE id = ?7`,
     )
     .bind(
       patch.display_name,
       patch.vollmacht_template ?? null,
       patch.honorar_hourly ?? null,
       patch.honorar_advance ?? null,
+      patch.impressum_url ?? null,
+      patch.datenschutz_url ?? null,
       id,
     )
     .run();

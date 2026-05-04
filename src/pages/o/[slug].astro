@@ -1,0 +1,167 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { findKanzleiBySlug, pickKanzleiLinks } from '../../lib/db';
+import { listAktenTypen } from '../../lib/akten_typ';
+import { i18n, normalizeLang } from '../../lib/i18n';
+import { isAiConfigured } from '../../lib/ai';
+
+export const prerender = false;
+
+const slug = Astro.params.slug ?? '';
+const env = Astro.locals.runtime?.env;
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiBySlug(env.DB, slug);
+if (!kanzlei || kanzlei.public_intake_enabled !== 1) return new Response('Not Found', { status: 404 });
+
+// Sprache: ?lang=en überschreibt; sonst Browser-Accept-Language; sonst de.
+const url = new URL(Astro.request.url);
+const langParam = url.searchParams.get('lang');
+const acceptLang = Astro.request.headers.get('accept-language') ?? '';
+const detectedLang = langParam
+  ? normalizeLang(langParam)
+  : /\ben\b/i.test(acceptLang) && !/\bde\b/i.test(acceptLang)
+    ? 'en'
+    : 'de';
+const i = i18n(detectedLang);
+
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
+const otherAllowed = kanzlei.public_intake_other_enabled === 1;
+
+const error = url.searchParams.get('error');
+const submitted = url.searchParams.get('sent') === '1';
+const aiEnabled = isAiConfigured(env);
+---
+<AppLayout title={`${i.intake.title} — ${kanzlei.display_name}`} lang={detectedLang} kanzleiLinks={pickKanzleiLinks(kanzlei)}>
+  {kanzlei.brand_color && (
+    <style set:html={`:root { --gold: ${kanzlei.brand_color}; }`}></style>
+  )}
+  <main class="app-shell" style="max-width: 720px;">
+    <header style="margin-bottom: 32px;">
+      {kanzlei.logo_r2_key ? (
+        <img src={`/api/kanzlei/${kanzlei.id}/logo`} alt={kanzlei.display_name} style="max-height: 60px; max-width: 220px; margin-bottom: 16px;" />
+      ) : (
+        <span class="marker">
+          <span class="pilcrow" style="color: var(--gold);">§</span>
+          <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">{kanzlei.display_name}</span>
+        </span>
+      )}
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">{i.intake.title}</h1>
+      <p style="font-size: 15px; color: var(--muted); margin-top: 4px;">{i.intake.subtitle(kanzlei.display_name)}</p>
+      {aiEnabled && !submitted && (
+        <p style="font-size: 13px; margin-top: 12px;">
+          <a href={`/o/${kanzlei.slug}/chat?lang=${detectedLang}`} class="tlink">
+            {detectedLang === 'en' ? '✨ Try our AI-assisted chat intake' : '✨ Lieber im Chat ausfüllen — KI-geführt'}
+          </a>
+        </p>
+      )}
+    </header>
+
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    {submitted ? (
+      <div class="app-card" style="text-align: center; padding: 56px 40px;">
+        <span style="display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">
+          ✓
+        </span>
+        <h2 class="serif" style="font-size: 28px; margin-bottom: 16px;">{i.intake.sent_title}</h2>
+        <p style="color: var(--ink-2); font-size: 16px; line-height: 1.6;">
+          {i.intake.sent_hint}
+        </p>
+      </div>
+    ) : (
+      <form method="post" action="/api/o/submit" class="app-card">
+        <input type="hidden" name="slug" value={kanzlei.slug} />
+        <input type="hidden" name="lang" value={detectedLang} />
+        {/* Honeypot — Bots füllen es. Mensch lässt's leer. */}
+        <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; height:1px; width:1px; opacity:0;" />
+
+        <fieldset style="border: 1px solid var(--rule); padding: 16px; margin: 0 0 20px 0;">
+          <legend style="font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 6px;">
+            {i.intake.rechtsgebiet_label}
+          </legend>
+          {aktenTypen.map((t, idx) => (
+            <label style="display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--rule);">
+              <input type="radio" name="akten_typ_id" value={t.id} required checked={idx === 0} style="margin-top: 4px;" />
+              <span style="flex: 1;">{t.name}</span>
+            </label>
+          ))}
+          {otherAllowed && (
+            <label style="display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 14px; cursor: pointer;">
+              <input type="radio" name="akten_typ_id" value="__other__" style="margin-top: 4px;" />
+              <span style="flex: 1;">{i.intake.rechtsgebiet_other}</span>
+            </label>
+          )}
+        </fieldset>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <label class="app-label">
+            <span class="app-label-text">{i.intake.vorname_placeholder} *</span>
+            <input class="app-input" type="text" name="vorname" required maxlength="80" />
+          </label>
+          <label class="app-label">
+            <span class="app-label-text">{i.intake.nachname_placeholder} *</span>
+            <input class="app-input" type="text" name="nachname" required maxlength="80" />
+          </label>
+        </div>
+
+        <label class="app-label">
+          <span class="app-label-text">{i.intake.email_label}</span>
+          <input class="app-input" type="email" name="email" required maxlength="120" />
+        </label>
+
+        <label class="app-label">
+          <span class="app-label-text">{i.intake.sachverhalt_label}</span>
+          <textarea
+            class="app-input"
+            name="sachverhalt"
+            rows="6"
+            maxlength="5000"
+            placeholder={i.intake.sachverhalt_placeholder}
+            style="font-family: var(--sans); resize: vertical;"
+          ></textarea>
+        </label>
+
+        <label style="display: flex; gap: 12px; align-items: flex-start; margin: 16px 0 24px; cursor: pointer;">
+          <input type="checkbox" name="privacy_consent" required value="1" style="margin-top: 4px;" />
+          <span style="font-size: 14px; line-height: 1.5; color: var(--ink-2);">
+            {i.intake.privacy_consent}
+          </span>
+        </label>
+
+        <button type="submit" class="cta-button">{i.intake.submit_cta}</button>
+      </form>
+    )}
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 14px 24px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cta-button:hover { background: #1a2436; }
+
+  @media (max-width: 640px) {
+    .app-shell { padding: 24px 16px; }
+    .app-card { padding: 20px 16px; }
+    .cta-button { width: 100%; padding: 16px 20px; font-size: 16px; }
+    form > div[style*="grid-template-columns: 1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+      gap: 0 !important;
+    }
+  }
+</style>

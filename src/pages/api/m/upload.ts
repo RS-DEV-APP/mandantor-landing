@@ -1,7 +1,12 @@
 import type { APIRoute } from 'astro';
-import { findAkteByMandantToken } from '../../../lib/akten';
+import { findAkteByMandantToken, akteLang } from '../../../lib/akten';
 import { listFiles, recordFile, MAX_UPLOAD_BYTES, MAX_FILES_PER_AKTE, ALLOWED_UPLOAD_MIME, fileExtensionAllowed } from '../../../lib/mandant';
 import { newId } from '../../../lib/ids';
+import type { Lang } from '../../../lib/i18n';
+
+function err(lang: Lang, de: string, en: string): string {
+  return lang === 'en' ? en : de;
+}
 
 export const prerender = false;
 
@@ -20,25 +25,27 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   }
 
   const akte = await findAkteByMandantToken(env.DB, token);
-  if (!akte) return new Response('Nicht gefunden', { status: 404 });
+  if (!akte) return new Response('Nicht gefunden / Not found', { status: 404 });
+  const lang = akteLang(akte);
   if (akte.status === 'submitted' || akte.status === 'archived') {
-    return new Response('Akte ist bereits abgeschlossen', { status: 403 });
+    return new Response(err(lang, 'Akte ist bereits abgeschlossen', 'File already submitted'), { status: 403 });
   }
 
-  if (file.size === 0) return new Response('Datei ist leer', { status: 400 });
+  if (file.size === 0) return new Response(err(lang, 'Datei ist leer', 'File is empty'), { status: 400 });
+  const maxMb = Math.round(MAX_UPLOAD_BYTES / 1024 / 1024);
   if (file.size > MAX_UPLOAD_BYTES) {
-    return new Response(`Datei zu groß (max ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB)`, { status: 400 });
+    return new Response(err(lang, `Datei zu groß (max ${maxMb} MB)`, `File too large (max ${maxMb} MB)`), { status: 400 });
   }
   if (!fileExtensionAllowed(file.name)) {
-    return new Response('Dateityp nicht erlaubt', { status: 400 });
+    return new Response(err(lang, 'Dateityp nicht erlaubt', 'File type not allowed'), { status: 400 });
   }
   if (file.type && !ALLOWED_UPLOAD_MIME.has(file.type)) {
-    return new Response(`MIME-Typ nicht erlaubt: ${file.type}`, { status: 400 });
+    return new Response(err(lang, `MIME-Typ nicht erlaubt: ${file.type}`, `MIME type not allowed: ${file.type}`), { status: 400 });
   }
 
   const existing = await listFiles(env.DB, akte.id);
   if (existing.length >= MAX_FILES_PER_AKTE) {
-    return new Response(`Maximal ${MAX_FILES_PER_AKTE} Dateien pro Akte`, { status: 400 });
+    return new Response(err(lang, `Maximal ${MAX_FILES_PER_AKTE} Dateien pro Akte`, `Max ${MAX_FILES_PER_AKTE} files per file`), { status: 400 });
   }
 
   const r2Key = `akten/${akte.id}/${newId()}-${file.name}`;

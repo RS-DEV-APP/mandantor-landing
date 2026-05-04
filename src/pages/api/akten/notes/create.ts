@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { findAkteById } from '../../../../lib/akten';
 import { createNote } from '../../../../lib/notes';
+import { rebuildFtsAsync } from '../../../../lib/search';
 
 export const prerender = false;
 
@@ -18,5 +19,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   if (!akte) return new Response('Nicht gefunden', { status: 404 });
 
   await createNote(env.DB, akteId, session.user_id, content);
+  rebuildFtsAsync(env.DB, locals.runtime?.ctx, akteId);
   return redirect(`/app/akten/${akteId}#notizen`, 303);
 };

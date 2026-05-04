@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { findAkteById, reopenAkte } from '../../../lib/akten';
+import { findAkteById, reopenAkte, akteLang } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
 import { sendReopenRequestEmail } from '../../../lib/mail';
 import { appendAudit, buildAuditContext } from '../../../lib/audit';
@@ -46,6 +46,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       const branding = kanzlei ? {
         logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
         accentColor: kanzlei.brand_color,
+        impressumUrl: kanzlei.impressum_url,
+        datenschutzUrl: kanzlei.datenschutz_url,
       } : {};
       await sendReopenRequestEmail(
         env,
@@ -53,6 +55,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
         kanzlei?.display_name ?? 'Ihre Kanzlei',
         reason,
         inviteUrl,
+        akteLang(akte),
         branding,
       );
     } catch (err) {

@@ -5,6 +5,8 @@ import { getSubscription, countActiveAkten } from '../../../lib/subscription';
 import { PLAN_LIMITS } from '../../../lib/stripe';
 import { appendAudit, buildAuditContext } from '../../../lib/audit';
 import { dispatchEvent } from '../../../lib/webhooks';
+import { normalizeLang } from '../../../lib/i18n';
+import { rebuildFtsAsync } from '../../../lib/search';
 
 export const prerender = false;
 
@@ -38,6 +40,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const mandantName = ((formData.get('mandant_name') ?? '').toString().trim() || null);
   const aktenTypIdRaw = (formData.get('akten_typ_id') ?? '').toString().trim();
   const confirmConflict = (formData.get('confirm_conflict') ?? '').toString() === '1';
+  const lang = normalizeLang((formData.get('lang') ?? '').toString());
 
   // Conflict-Check (nur wenn Email oder Name gesetzt UND nicht explizit bestätigt)
   if (!confirmConflict && (mandantEmail || mandantName)) {
@@ -68,7 +71,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     if (typ) aktenTypId = typ.id;
   }
 
-  const akte = await createAkte(env.DB, session.kanzlei_id, caseLabel, aktenTypId);
+  const akte = await createAkte(env.DB, session.kanzlei_id, caseLabel, aktenTypId, lang);
   if (mandantEmail || mandantName) {
     await setMandantContact(env.DB, akte.id, mandantEmail, mandantName);
   }
@@ -80,12 +83,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     payload: { case_label: caseLabel, akten_typ_id: aktenTypId, mandant_email: mandantEmail, mandant_name: mandantName },
   });
 
+  rebuildFtsAsync(env.DB, locals.runtime?.ctx, akte.id);
+
   await dispatchEvent(env.DB, locals.runtime?.ctx, session.kanzlei_id, 'akte.created', {
     akte_id: akte.id,
     case_label: caseLabel,
     akten_typ_id: aktenTypId,
     mandant_email: mandantEmail,
     mandant_name: mandantName,
+    lang,
     created_at: Math.floor(Date.now() / 1000),
   });
 

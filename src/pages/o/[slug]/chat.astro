@@ -1,0 +1,148 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import { findKanzleiBySlug, pickKanzleiLinks } from '../../../lib/db';
+import { listAktenTypen } from '../../../lib/akten_typ';
+import { i18n, normalizeLang, type Lang } from '../../../lib/i18n';
+import { isAiConfigured } from '../../../lib/ai';
+import { decodeState, INTAKE_COOKIE, type IntakeState } from '../../../lib/intake_chat';
+
+export const prerender = false;
+
+const slug = Astro.params.slug ?? '';
+const env = Astro.locals.runtime?.env;
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+if (!isAiConfigured(env)) {
+  // Ohne KI kein Chat-Mode — fallback auf normales Form
+  return Astro.redirect(`/o/${slug}`, 302);
+}
+
+const kanzlei = await findKanzleiBySlug(env.DB, slug);
+if (!kanzlei || kanzlei.public_intake_enabled !== 1) return new Response('Not Found', { status: 404 });
+
+const requestUrl = new URL(Astro.request.url);
+const langParam = requestUrl.searchParams.get('lang');
+const acceptLang = Astro.request.headers.get('accept-language') ?? '';
+const detectedLang: Lang = langParam
+  ? normalizeLang(langParam)
+  : /\ben\b/i.test(acceptLang) && !/\bde\b/i.test(acceptLang)
+    ? 'en'
+    : 'de';
+const i = i18n(detectedLang);
+
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
+
+// State aus Cookie
+const cookieValue = Astro.cookies.get(INTAKE_COOKIE)?.value;
+let state: IntakeState | null = decodeState(cookieValue ?? null);
+if (state && state.slug !== slug) state = null; // Cross-Kanzlei-Schutz
+
+const error = requestUrl.searchParams.get('error');
+const needsBootstrap = !state || state.conversation.length === 0;
+---
+<AppLayout title={`${i.intake.title} — ${kanzlei.display_name}`} lang={detectedLang} kanzleiLinks={pickKanzleiLinks(kanzlei)}>
+  {kanzlei.brand_color && (
+    <style set:html={`:root { --gold: ${kanzlei.brand_color}; }`}></style>
+  )}
+  <main class="app-shell" style="max-width: 720px;">
+    <header style="margin-bottom: 24px;">
+      {kanzlei.logo_r2_key ? (
+        <img src={`/api/kanzlei/${kanzlei.id}/logo`} alt={kanzlei.display_name} style="max-height: 50px; max-width: 200px; margin-bottom: 16px;" />
+      ) : (
+        <span class="marker">
+          <span class="pilcrow" style="color: var(--gold);">§</span>
+          <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">{kanzlei.display_name}</span>
+        </span>
+      )}
+      <h1 class="serif" style="font-size: 28px; margin: 12px 0 4px; letter-spacing: -0.015em;">{i.intake.title}</h1>
+      <p style="font-size: 14px; color: var(--muted);">
+        {detectedLang === 'en'
+          ? `Quick conversation with ${kanzlei.display_name} — under 2 minutes.`
+          : `Kurzer Dialog mit ${kanzlei.display_name} — unter 2 Minuten.`}
+      </p>
+      <p style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+        <a href={`/o/${slug}`} class="tlink">
+          {detectedLang === 'en' ? '← Use classic form instead' : '← Lieber das klassische Formular'}
+        </a>
+      </p>
+    </header>
+
+    {error && (
+      <p class="app-error" style="margin: 0 0 16px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    <div class="chat-thread" style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+      {state?.conversation.map((turn) => (
+        <div
+          class={`chat-bubble chat-bubble--${turn.role}`}
+          style={`max-width: 85%; padding: 12px 16px; border: 1px solid var(--rule); ${turn.role === 'assistant' ? 'background: #fafaf7; border-left: 3px solid var(--gold);' : 'background: var(--paper); align-self: flex-end; border-left: 3px solid var(--ink);'}`}
+        >
+          <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-2); white-space: pre-wrap;">{turn.content}</p>
+        </div>
+      ))}
+      {needsBootstrap && (
+        <div class="chat-bubble chat-bubble--assistant" style="max-width: 85%; padding: 12px 16px; border: 1px solid var(--rule); background: #fafaf7; border-left: 3px solid var(--gold);">
+          <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted);">
+            {detectedLang === 'en' ? 'Connecting to assistant…' : 'Assistent wird gestartet…'}
+          </p>
+        </div>
+      )}
+    </div>
+
+    <form method="post" action="/api/o/chat" class="app-card">
+      <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="lang" value={detectedLang} />
+      {/* Honeypot */}
+      <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; height:1px; width:1px; opacity:0;" />
+      <label class="app-label" style="margin-bottom: 12px;">
+        <span class="app-label-text">{detectedLang === 'en' ? 'Your reply' : 'Ihre Antwort'}</span>
+        <textarea
+          class="app-input"
+          name="user_input"
+          rows={needsBootstrap ? 1 : 3}
+          required={!needsBootstrap}
+          maxlength="2000"
+          autofocus
+          placeholder={needsBootstrap
+            ? (detectedLang === 'en' ? 'Click "Start" to begin' : 'Klicken Sie „Starten", um zu beginnen')
+            : (detectedLang === 'en' ? 'Type your reply …' : 'Antwort eingeben …')}
+          style="font-family: var(--sans); resize: vertical;"
+        ></textarea>
+      </label>
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <p style="font-size: 12px; color: var(--muted); margin: 0;">
+          {detectedLang === 'en'
+            ? 'AI-assisted intake. Personal data (email, phone, IBAN) is masked before being sent to the model.'
+            : 'KI-gestütztes Onboarding. Persönliche Daten (E-Mail, Telefon, IBAN) werden vor der Übertragung an das KI-Modell maskiert.'}
+        </p>
+        <button type="submit" class="cta-button">
+          {needsBootstrap
+            ? (detectedLang === 'en' ? 'Start →' : 'Starten →')
+            : (detectedLang === 'en' ? 'Send →' : 'Senden →')}
+        </button>
+      </div>
+    </form>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    display: inline-block;
+    padding: 12px 22px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+  .chat-bubble--user { align-self: flex-end; }
+  @media (max-width: 640px) {
+    .app-shell { padding: 24px 16px; }
+    .cta-button { width: 100%; padding: 14px 20px; font-size: 16px; }
+  }
+</style>

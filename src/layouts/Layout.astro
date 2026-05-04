@@ -12,6 +12,10 @@ const {
   description = 'Mandantor übernimmt einen Schritt — den Erstkontakt — präzise und unauffällig. DSGVO-konform, EU-gehostet.',
   noindex = false,
 } = Astro.props;
+// Site steht hinter Basic-Auth-Schranke — robots immer auf noindex,
+// damit auch die 401-Seite nicht indexiert wird (zusätzlich zu robots.txt).
+const effectiveNoindex = true;
+void noindex;
 ---
 <!doctype html>
 <html lang="de">
@@ -20,7 +24,7 @@ const {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{title}</title>
   <meta name="description" content={description} />
-  {noindex && <meta name="robots" content="noindex" />}
+  {effectiveNoindex && <meta name="robots" content="noindex,nofollow" />}
 
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 </head>

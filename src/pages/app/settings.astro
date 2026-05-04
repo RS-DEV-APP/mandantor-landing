@@ -93,7 +93,7 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
           </span>
         </label>
 
-        <label class="app-label" style="margin-bottom: 0;">
+        <label class="app-label">
           <span class="app-label-text">Login-E-Mail (nicht änderbar)</span>
           <input
             class="app-input"
@@ -102,6 +102,36 @@ const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mic
             disabled
             style="background: #f5f3ee; color: var(--muted);"
           />
+        </label>
+
+        <label class="app-label">
+          <span class="app-label-text">Impressum-URL der Kanzlei</span>
+          <input
+            class="app-input"
+            type="url"
+            name="impressum_url"
+            value={kanzlei.impressum_url ?? ''}
+            placeholder="https://kanzlei-mueller.de/impressum"
+            pattern="https://.*"
+          />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Wird im Mandant-Onboarding und in Mails verlinkt (TMG/Anbieter-Pflicht).
+          </span>
+        </label>
+
+        <label class="app-label" style="margin-bottom: 0;">
+          <span class="app-label-text">Datenschutz-URL der Kanzlei</span>
+          <input
+            class="app-input"
+            type="url"
+            name="datenschutz_url"
+            value={kanzlei.datenschutz_url ?? ''}
+            placeholder="https://kanzlei-mueller.de/datenschutz"
+            pattern="https://.*"
+          />
+          <span style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            DSGVO-Pflicht. Mandanten und Public-Onboarding sehen diesen Link.
+          </span>
         </label>
       </div>
 

@@ -1,0 +1,158 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AccountNav from '../../../components/AccountNav.astro';
+import { findKanzleiById } from '../../../lib/db';
+import { findUserById } from '../../../lib/users';
+import { listAktenTypen } from '../../../lib/akten_typ';
+
+export const prerender = false;
+
+const session = Astro.locals.session;
+const env = Astro.locals.runtime?.env;
+if (!session) return Astro.redirect('/app/login', 302);
+if (!env?.DB) return new Response('Server misconfigured', { status: 500 });
+
+const kanzlei = await findKanzleiById(env.DB, session.kanzlei_id);
+const me = await findUserById(env.DB, session.user_id);
+if (!kanzlei || !me) return Astro.redirect('/app/login', 302);
+
+const isAdmin = me.role === 'admin';
+const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
+
+const url = new URL(Astro.request.url);
+const saved = url.searchParams.get('saved') === '1';
+const error = url.searchParams.get('error');
+
+const origin = url.origin;
+const publicUrl = `${origin}/o/${kanzlei.slug}`;
+const accentColor = kanzlei.brand_color && /^#[0-9a-fA-F]{6}$/.test(kanzlei.brand_color) ? kanzlei.brand_color : '#0F172A';
+const embedSnippet = `<a href="${publicUrl}?utm_source=website"
+   style="display:inline-block;padding:14px 24px;background:${accentColor};color:#fff;
+   text-decoration:none;font-family:sans-serif;font-size:15px;border-radius:2px;">
+  Online-Mandat starten →
+</a>`;
+
+const enabled = kanzlei.public_intake_enabled === 1;
+const otherEnabled = kanzlei.public_intake_other_enabled === 1;
+const missingLinks = !kanzlei.impressum_url || !kanzlei.datenschutz_url;
+---
+<AppLayout title="Online-Mandat — Mandantor">
+  <main class="app-shell">
+    <p style="margin-bottom: 16px;">
+      <a href="/app/account" class="tlink">← Account</a>
+    </p>
+
+    <header style="margin-bottom: 24px;">
+      <span class="marker">
+        <span class="pilcrow" style="color: var(--gold);">§</span>
+        <span style="font-family: var(--mono); font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);">Online-Mandat</span>
+      </span>
+      <h1 class="serif" style="font-size: 32px; margin: 12px 0 4px; letter-spacing: -0.015em;">Online-Mandat einrichten</h1>
+      <p style="font-size: 14px; color: var(--muted);">Lassen Sie Mandanten direkt von Ihrer Website ein Onboarding starten.</p>
+    </header>
+
+    <AccountNav active="intake" />
+
+    {saved && (
+      <p class="app-success" style="margin: 0 0 24px 0; padding: 12px 16px; background: #f0f7f0; border: 1px solid #c5e0c5; font-size: 14px;">
+        ✓ Einstellungen gespeichert.
+      </p>
+    )}
+    {error && (
+      <p class="app-error" style="margin: 0 0 24px 0; padding: 12px 16px; background: #fdf0f0; border: 1px solid #e6c5c5; font-size: 14px;">
+        {error}
+      </p>
+    )}
+
+    {missingLinks && (
+      <p style="margin: 0 0 24px 0; padding: 12px 16px; background: #fffaf0; border: 1px solid #e6d4a3; border-left: 4px solid var(--gold); font-size: 14px;">
+        <strong>Hinweis:</strong> Bitte hinterlegen Sie zuerst Impressum- und Datenschutz-URL Ihrer Kanzlei in den
+        <a href="/app/settings" class="tlink">Einstellungen</a>. Beide Links sind im Online-Mandat Pflicht (TMG, DSGVO).
+      </p>
+    )}
+
+    {isAdmin && (
+      <form method="post" action="/api/account/intake" class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 20px; margin-bottom: 16px;">Sichtbarkeit</h2>
+        <label style="display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; font-size: 14px;">
+          <input type="checkbox" name="public_intake_enabled" value="1" checked={enabled} style="margin-top: 4px;" />
+          <span>
+            <strong>Online-Mandat aktivieren</strong>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">
+              Wenn aktiviert, ist die Public-URL erreichbar. Jede Anfrage erstellt automatisch eine neue Akte; Plan-Limits zählen mit.
+            </div>
+          </span>
+        </label>
+        <label style="display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; font-size: 14px; border-top: 1px solid var(--rule);">
+          <input type="checkbox" name="public_intake_other_enabled" value="1" checked={otherEnabled} style="margin-top: 4px;" />
+          <span>
+            <strong>„Andere Angelegenheit" erlauben</strong>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">
+              Mandant kann ein freies Anliegen wählen, das keinem Akten-Typ zugeordnet ist.
+            </div>
+          </span>
+        </label>
+        <button type="submit" class="cta-button" style="margin-top: 16px;">Speichern</button>
+      </form>
+    )}
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">Public-URL</h2>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">
+        Diese URL können Sie per E-Mail verschicken oder auf einem Tablet im Wartezimmer öffnen:
+      </p>
+      <code style="display: block; padding: 12px 14px; background: var(--paper); border: 1px solid var(--rule); font-family: var(--mono); font-size: 13px; word-break: break-all; user-select: all;">{publicUrl}</code>
+      {!enabled && (
+        <p style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+          Inaktiv — die URL liefert 404, bis Sie das Online-Mandat oben aktivieren.
+        </p>
+      )}
+    </div>
+
+    <div class="app-card" style="margin-bottom: 24px;">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">HTML-Snippet für Ihre Webseite</h2>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">
+        Kopieren Sie folgenden Code in Ihre Kanzlei-Webseite (z. B. in den Footer oder eine „Mandat anfragen"-Seite). Die Farbe entspricht Ihrer Akzent-Farbe aus dem Branding.
+      </p>
+      <textarea readonly style="width: 100%; min-height: 110px; font-family: var(--mono); font-size: 12px; padding: 12px; border: 1px solid var(--rule); background: var(--paper); resize: vertical;" onclick="this.select()">{embedSnippet}</textarea>
+    </div>
+
+    <div class="app-card">
+      <h2 class="serif" style="font-size: 20px; margin-bottom: 12px;">Auswählbare Rechtsgebiete</h2>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">
+        Mandanten sehen die Liste der unten konfigurierten Akten-Typen.
+        Pflegen Sie diese in den <a href="/app/settings" class="tlink">Einstellungen</a>.
+      </p>
+      {aktenTypen.length === 0 ? (
+        <p style="font-size: 14px; color: var(--muted);">Noch keine Akten-Typen angelegt.</p>
+      ) : (
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {aktenTypen.map((t) => (
+            <li style="padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 14px; display: flex; justify-content: space-between; gap: 12px;">
+              <span><strong>{t.name}</strong></span>
+              <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">
+                {t.include_sachverhalt ? '+ Sachverhalt' : ''}
+                {t.include_widerruf ? ' + Widerruf' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </main>
+</AppLayout>
+
+<style>
+  .cta-button {
+    padding: 12px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .cta-button:hover { background: #1a2436; }
+</style>

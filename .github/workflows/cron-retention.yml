@@ -1,0 +1,40 @@
+name: Cron — Aufbewahrungs-Automatik
+
+# Archiviert täglich Akten, die ihre Aufbewahrungsfrist erreicht haben
+# (Default: 5 Jahre nach submitted, 12 Monate nach letzter Aktivität für Drafts).
+# Endpoint: POST /api/cron/retention mit X-Cron-Auth-Header.
+#
+# Setup siehe cron-reminders.yml.
+
+on:
+  schedule:
+    # 03:00 UTC — Off-Peak, keine Mail-Aktivität, geringer DB-Lock-Risiko
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: POST /api/cron/retention
+        env:
+          BASE_URL: ${{ vars.MANDANTOR_BASE_URL || 'https://mandantor.de' }}
+          CRON_SECRET: ${{ secrets.MANDANTOR_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::MANDANTOR_CRON_SECRET not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "X-Cron-Auth: $CRON_SECRET" \
+            -H "User-Agent: GitHub-Actions-Cron" \
+            "$BASE_URL/api/cron/retention")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "Status: $status"
+          echo "Body: $body"
+          if [ "$status" != "200" ]; then
+            echo "::error::Cron call failed with status $status"
+            exit 1
+          fi

@@ -1,7 +1,12 @@
 import { hashIp, hashUa } from './hash';
 import { newId } from './ids';
 
-export const STEP_LABELS = ['Stammdaten', 'Vollmacht', 'DSGVO', 'Honorar', 'Upload'] as const;
+// Index = step_no - 1. Reihenfolge entspricht NICHT dem UI-Render-Order:
+// step_no 1-5 sind die ursprünglichen Schritte (kompatibel mit Bestandsdaten),
+// 6 (Sachverhalt) und 7 (Widerruf) wurden in 0012 ergänzt und sind optional
+// pro Akten-Typ (akten_typ.include_sachverhalt / include_widerruf).
+// UI-Render-Order: 1, 6?, 7?, 2, 3, 4, 5 (Stammdaten → Sachverhalt → Widerruf → Vollmacht → DSGVO → Honorar → Upload).
+export const STEP_LABELS = ['Stammdaten', 'Vollmacht', 'DSGVO', 'Honorar', 'Upload', 'Sachverhalt', 'Widerruf'] as const;
 export const STEP_COUNT = STEP_LABELS.length;
 
 export type AkteStep = {

@@ -37,8 +37,15 @@ function readInput(formData: FormData): AktenTypInput | { error: string } {
     honorar_hourly: ((formData.get('honorar_hourly') ?? '').toString().trim()) || null,
     honorar_advance: ((formData.get('honorar_advance') ?? '').toString().trim()) || null,
     dsgvo_template: ((formData.get('dsgvo_template') ?? '').toString().trim()) || null,
+    widerruf_template: ((formData.get('widerruf_template') ?? '').toString().trim()) || null,
     file_hints: fileHints,
     signature_levels: readSignatureLevels(formData),
+    include_sachverhalt: (formData.get('include_sachverhalt') ?? '').toString() === '1',
+    include_widerruf: (formData.get('include_widerruf') ?? '').toString() === '1',
+    phases: ((formData.get('phases') ?? '').toString())
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
   };
 }
 

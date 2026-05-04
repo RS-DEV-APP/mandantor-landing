@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
-import { findAkteByMandantToken } from '../../../lib/akten';
+import { findAkteByMandantToken, akteLang } from '../../../lib/akten';
 import { findKanzleiById } from '../../../lib/db';
+import { findAktenTypByIdOnly } from '../../../lib/akten_typ';
 import { listSteps, listFiles, markSubmitted, saveStep } from '../../../lib/mandant';
 import { sendSubmissionNotificationEmail, sendMandantConfirmationEmail } from '../../../lib/mail';
 import { appendAudit } from '../../../lib/audit';
@@ -45,9 +46,24 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   const steps = await listSteps(env.DB, akte.id);
   const signed = new Set(steps.filter((s) => s.signed_at).map((s) => s.step_no));
-  for (const required of [1, 2, 3, 4]) {
-    if (!signed.has(required)) {
-      return new Response(`Schritt ${required} ist nicht abgeschlossen`, { status: 400 });
+  const aktenTyp = akte.akten_typ_id
+    ? await findAktenTypByIdOnly(env.DB, akte.akten_typ_id)
+    : null;
+  const includeSachverhalt = aktenTyp?.include_sachverhalt === 1 || akte.intake_source === 'public';
+  const includeWiderruf = aktenTyp?.include_widerruf === 1;
+  const required: number[] = [
+    1,
+    ...(includeSachverhalt ? [6] : []),
+    ...(includeWiderruf ? [7] : []),
+    2,
+    3,
+    4,
+  ];
+  const lang = akteLang(akte);
+  for (const r of required) {
+    if (!signed.has(r)) {
+      const msg = lang === 'en' ? `Step ${r} not completed` : `Schritt ${r} ist nicht abgeschlossen`;
+      return new Response(msg, { status: 400 });
     }
   }
 
@@ -96,8 +112,10 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
           const branding = {
             logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
             accentColor: kanzlei.brand_color,
+            impressumUrl: kanzlei.impressum_url,
+            datenschutzUrl: kanzlei.datenschutz_url,
           };
-          await sendMandantConfirmationEmail(env, mandantEmail, kanzlei.display_name, akte.case_label, branding);
+          await sendMandantConfirmationEmail(env, mandantEmail, kanzlei.display_name, akte.case_label, akteLang(akte), branding);
         } catch (err) {
           console.error('mandant confirmation failed', err);
         }

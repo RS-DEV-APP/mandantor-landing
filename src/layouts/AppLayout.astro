@@ -3,11 +3,16 @@ import '../styles/global.css';
 
 interface Props {
   title: string;
+  lang?: 'de' | 'en';
+  kanzleiLinks?: { impressum_url: string | null; datenschutz_url: string | null } | null;
 }
-const { title } = Astro.props;
+const { title, lang = 'de', kanzleiLinks = null } = Astro.props;
+const footerLabels = lang === 'en'
+  ? { imprint: 'Imprint', privacy: 'Privacy' }
+  : { imprint: 'Impressum', privacy: 'Datenschutz' };
 ---
 <!doctype html>
-<html lang="de">
+<html lang={lang}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -19,11 +24,27 @@ const { title } = Astro.props;
   <slot />
   <footer class="app-footer">
     <div class="app-footer-inner">
-      <span>Mandantor</span>
-      <span class="dot">·</span>
-      <a href="/impressum">Impressum</a>
-      <span class="dot">·</span>
-      <a href="/datenschutz">Datenschutz</a>
+      {kanzleiLinks?.impressum_url && (
+        <>
+          <a href={kanzleiLinks.impressum_url} target="_blank" rel="noopener">{footerLabels.imprint}</a>
+          <span class="dot">·</span>
+        </>
+      )}
+      {kanzleiLinks?.datenschutz_url && (
+        <>
+          <a href={kanzleiLinks.datenschutz_url} target="_blank" rel="noopener">{footerLabels.privacy}</a>
+          <span class="dot">·</span>
+        </>
+      )}
+      <span>Powered by Mandantor</span>
+      {!kanzleiLinks && (
+        <>
+          <span class="dot">·</span>
+          <a href="/impressum">{footerLabels.imprint}</a>
+          <span class="dot">·</span>
+          <a href="/datenschutz">{footerLabels.privacy}</a>
+        </>
+      )}
     </div>
   </footer>
 </body>

@@ -5,7 +5,30 @@ import { findUserById } from './lib/users';
 import { hashToken } from './lib/hash';
 
 const PUBLIC_APP_PATHS = new Set(['/app/login', '/app/login/', '/app/invite', '/app/invite/']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/stripe/webhook', '/api/cron/'];
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/health', '/api/m/', '/api/o/', '/api/stripe/webhook', '/api/cron/'];
+
+// HTTP-Basic-Auth-Schranke vor der gesamten Seite. Default: aktiv mit fest
+// hinterlegtem Passwort. Override via Cloudflare-Env-Var SITE_PASSWORD möglich
+// (für späteres Rotieren ohne Code-Deploy). Browser cached die Credentials für
+// die Origin → kein Re-Prompt pro Request.
+//
+// Bypass nur für Endpoints, die ihre eigene Auth haben (Webhooks/Crons) +
+// statische Assets, die das CF-CDN ohne Worker-Pass durchreicht.
+const DEFAULT_SITE_PASSWORD = 'mandantor-2026';
+const SITE_AUTH_BYPASS_PREFIXES = ['/api/cron/', '/api/stripe/webhook'];
+const SITE_AUTH_BYPASS_EXACT = new Set(['/robots.txt', '/icon.svg', '/favicon.ico']);
+
+function siteAuthOk(authorization: string | null, expected: string): boolean {
+  if (!authorization || !authorization.startsWith('Basic ')) return false;
+  try {
+    const decoded = atob(authorization.slice(6));
+    const idx = decoded.indexOf(':');
+    const password = idx >= 0 ? decoded.slice(idx + 1) : decoded;
+    return password === expected;
+  } catch {
+    return false;
+  }
+}
 
 function needsAuth(pathname: string): boolean {
   if (pathname.startsWith('/app/')) return !PUBLIC_APP_PATHS.has(pathname);
@@ -19,7 +42,27 @@ function needsAuth(pathname: string): boolean {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const { url, cookies, locals, redirect } = context;
+  const { url, cookies, locals, redirect, request } = context;
+
+  // ── Site-weites Basic-Auth-Gate (immer aktiv; Override via env.SITE_PASSWORD) ──
+  const sitePassword = (locals.runtime?.env as { SITE_PASSWORD?: string } | undefined)?.SITE_PASSWORD
+    ?? DEFAULT_SITE_PASSWORD;
+  {
+    const path = url.pathname;
+    const bypass = SITE_AUTH_BYPASS_EXACT.has(path)
+      || SITE_AUTH_BYPASS_PREFIXES.some((p) => path.startsWith(p))
+      || path.startsWith('/_astro/'); // Astro-Build-Assets
+    if (!bypass && !siteAuthOk(request.headers.get('authorization'), sitePassword)) {
+      return new Response('Mandantor — geschützter Bereich. Bitte Zugangsdaten eingeben.', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Mandantor"',
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+  }
 
   if (needsAuth(url.pathname)) {
     const env = locals.runtime?.env;

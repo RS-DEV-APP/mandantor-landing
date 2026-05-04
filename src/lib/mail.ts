@@ -3,6 +3,8 @@
 // 2. Cloudflare MAILER (env.MAILER) — wenn binding verfügbar
 // 3. console.log — Dev-Fallback
 
+import { i18n, type Lang } from './i18n';
+
 const FROM = 'hello@mandantor.de';
 const FROM_NAME = 'Mandantor';
 
@@ -103,6 +105,8 @@ export type HtmlLayoutOptions = {
   accentColor?: string | null;   // hex like '#B8956A'; default Mandantor-gold
   bodyHtml: string;              // already-escaped HTML body
   footerHtml?: string;           // optional override; default = Mandantor-Footer
+  kanzleiLinks?: { impressum_url?: string | null; datenschutz_url?: string | null } | null;
+  lang?: Lang;
 };
 
 export function buildHtmlEmail(opts: HtmlLayoutOptions): string {
@@ -113,20 +117,31 @@ export function buildHtmlEmail(opts: HtmlLayoutOptions): string {
   const headerLogo = opts.logoUrl
     ? `<img src="${escapeHtml(opts.logoUrl)}" alt="${escapeHtml(opts.brandName)}" style="max-height:48px;max-width:200px;" />`
     : `<span style="font-family:Georgia,serif;font-size:22px;color:#0F172A;letter-spacing:-0.01em;">${escapeHtml(opts.brandName)}</span>`;
+  const lang: Lang = opts.lang ?? 'de';
+  const labels = lang === 'en'
+    ? { imprint: 'Imprint', privacy: 'Privacy', poweredBy: 'Powered by Mandantor — digital client onboarding for German law firms.' }
+    : { imprint: 'Impressum', privacy: 'Datenschutz', poweredBy: 'Powered by Mandantor — digitales Mandanten-Onboarding für Anwaltskanzleien in Deutschland.' };
+  const kanzleiLinkLine = opts.kanzleiLinks && (opts.kanzleiLinks.impressum_url || opts.kanzleiLinks.datenschutz_url)
+    ? `<p style="margin:0 0 8px;color:#666;font-size:12px;">
+        ${opts.kanzleiLinks.impressum_url ? `<a href="${escapeHtml(opts.kanzleiLinks.impressum_url)}" style="color:#666;">${labels.imprint}</a>` : ''}
+        ${opts.kanzleiLinks.impressum_url && opts.kanzleiLinks.datenschutz_url ? '&nbsp;·&nbsp;' : ''}
+        ${opts.kanzleiLinks.datenschutz_url ? `<a href="${escapeHtml(opts.kanzleiLinks.datenschutz_url)}" style="color:#666;">${labels.privacy}</a>` : ''}
+      </p>`
+    : '';
   const footer = opts.footerHtml ?? `
+    ${kanzleiLinkLine}
     <p style="margin:0 0 8px;color:#666;font-size:12px;line-height:1.5;">
-      Diese E-Mail kommt von <a href="https://mandantor.de" style="color:#666;">Mandantor</a> — dem digitalen
-      Mandanten-Onboarding-Portal für Anwaltskanzleien in Deutschland.
+      ${labels.poweredBy}
     </p>
-    <p style="margin:0;color:#999;font-size:11px;">
-      <a href="https://mandantor.de/impressum" style="color:#999;">Impressum</a>
+    ${opts.kanzleiLinks ? '' : `<p style="margin:0;color:#999;font-size:11px;">
+      <a href="https://mandantor.de/impressum" style="color:#999;">${labels.imprint}</a>
       &nbsp;·&nbsp;
-      <a href="https://mandantor.de/datenschutz" style="color:#999;">Datenschutz</a>
-    </p>
+      <a href="https://mandantor.de/datenschutz" style="color:#999;">${labels.privacy}</a>
+    </p>`}
   `;
 
   return `<!doctype html>
-<html lang="de">
+<html lang="${lang}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -274,26 +289,68 @@ export async function sendSubmissionNotificationEmail(
   );
 }
 
+// Benachrichtigung an die Kanzlei: Mandant hat eine neue Nachricht im Chat geschickt.
+export async function sendNewMandantMessageNotification(
+  env: Env,
+  toEmail: string,
+  mandantName: string,
+  caseLabel: string | null,
+  bodyPreview: string,
+  akteUrl: string,
+): Promise<{ delivered: Backend }> {
+  const labelPart = caseLabel ? `Akte ${caseLabel}` : 'Akte';
+  const subject = `Mandantor — Neue Nachricht von ${mandantName}`;
+  const text = [
+    'Hallo,',
+    '',
+    `${mandantName} hat im Mandantor-Portal eine neue Nachricht hinterlassen.`,
+    '',
+    labelPart,
+    '',
+    'Auszug:',
+    bodyPreview,
+    '',
+    'Direkt zur Akte:',
+    akteUrl,
+    '',
+    '—',
+    'Mandantor',
+    'mandantor.de',
+  ].join('\r\n');
+  const html = buildHtmlEmail({
+    preheader: `${mandantName} hat eine neue Nachricht hinterlassen.`,
+    brandName: 'Mandantor',
+    bodyHtml: `
+      ${paragraphHtml('Hallo,')}
+      ${paragraphHtml(`${mandantName} hat im Mandantor-Portal eine neue Nachricht hinterlassen.`)}
+      ${caseLabel ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#555;"><strong>Akte:</strong> ${escapeHtml(caseLabel)}</p>` : ''}
+      <p style="margin:0 0 16px;padding:14px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#1f2937;line-height:1.6;white-space:pre-wrap;">${escapeHtml(bodyPreview)}</p>
+      ${ctaButtonHtml(akteUrl, 'Zur Akte')}
+    `,
+  });
+  return sendEmail(env, toEmail, subject, text, 'mandant-message-notification', html);
+}
+
 function mandantInviteBody(
+  lang: Lang,
   kanzleiName: string,
   inviteUrl: string,
   caseLabel: string | null,
 ): string {
-  const caseLine = caseLabel ? `\nBetreff: ${caseLabel}` : '';
+  const t = i18n(lang).mail.invite;
+  const caseLine = caseLabel ? `\n${t.case_label} ${caseLabel}` : '';
   return [
-    'Sehr geehrte/r Mandant:in,',
+    t.greeting,
     '',
-    `die Kanzlei ${kanzleiName} hat ein digitales Mandanten-Onboarding für Sie vorbereitet.${caseLine}`,
+    `${t.intro(kanzleiName)}${caseLine}`,
     '',
-    'Über folgenden Link tragen Sie Ihre Stammdaten ein, bestätigen Vollmacht,',
-    'Datenschutz und Honorarvereinbarung und laden bei Bedarf Dokumente hoch:',
+    t.step_intro,
     '',
     inviteUrl,
     '',
-    'Sie können den Link mehrfach öffnen und die Bearbeitung jederzeit fortsetzen,',
-    'solange noch nicht abgeschickt wurde. Die Übertragung erfolgt verschlüsselt.',
+    t.resume_note,
     '',
-    `Bei Fragen wenden Sie sich direkt an die Kanzlei ${kanzleiName}.`,
+    t.contact_note(kanzleiName),
     '',
     '—',
     'Mandantor',
@@ -304,7 +361,14 @@ function mandantInviteBody(
 export type MandantBranding = {
   logoUrl?: string | null;     // absolut, z.B. https://mandantor.de/api/kanzlei/<id>/logo
   accentColor?: string | null; // hex
+  impressumUrl?: string | null;
+  datenschutzUrl?: string | null;
 };
+
+function brandingLinks(b: MandantBranding) {
+  if (!b.impressumUrl && !b.datenschutzUrl) return null;
+  return { impressum_url: b.impressumUrl ?? null, datenschutz_url: b.datenschutzUrl ?? null };
+}
 
 export async function sendMandantInviteEmail(
   env: Env,
@@ -312,49 +376,52 @@ export async function sendMandantInviteEmail(
   kanzleiName: string,
   inviteUrl: string,
   caseLabel: string | null,
+  lang: Lang,
   branding: MandantBranding = {},
 ): Promise<{ delivered: Backend }> {
+  const t = i18n(lang).mail.invite;
   const html = buildHtmlEmail({
-    preheader: `${kanzleiName} hat ein Onboarding für Sie vorbereitet.`,
+    preheader: t.preheader(kanzleiName),
     brandName: kanzleiName,
     logoUrl: branding.logoUrl,
     accentColor: branding.accentColor,
+    kanzleiLinks: brandingLinks(branding),
+    lang,
     bodyHtml: `
-      ${paragraphHtml('Sehr geehrte/r Mandant:in,')}
-      ${paragraphHtml(`die Kanzlei ${kanzleiName} hat ein digitales Mandanten-Onboarding für Sie vorbereitet.`)}
-      ${caseLabel ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#555;"><strong>Betreff:</strong> ${escapeHtml(caseLabel)}</p>` : ''}
-      ${paragraphHtml('Über folgenden Link tragen Sie Ihre Stammdaten ein, bestätigen Vollmacht, Datenschutz und Honorarvereinbarung und laden bei Bedarf Dokumente hoch:')}
-      ${ctaButtonHtml(inviteUrl, 'Onboarding starten', branding.accentColor)}
-      ${smallHtml('Sie können den Link mehrfach öffnen und die Bearbeitung jederzeit fortsetzen, solange noch nicht abgeschickt wurde. Die Übertragung erfolgt verschlüsselt.')}
-      ${smallHtml(`Bei Fragen wenden Sie sich direkt an die Kanzlei ${kanzleiName}.`)}
+      ${paragraphHtml(t.greeting)}
+      ${paragraphHtml(t.intro(kanzleiName))}
+      ${caseLabel ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#555;"><strong>${escapeHtml(t.case_label)}</strong> ${escapeHtml(caseLabel)}</p>` : ''}
+      ${paragraphHtml(t.step_intro)}
+      ${ctaButtonHtml(inviteUrl, t.cta, branding.accentColor)}
+      ${smallHtml(t.resume_note)}
+      ${smallHtml(t.contact_note(kanzleiName))}
     `,
   });
   return sendEmail(
     env,
     toMandant,
-    `${kanzleiName} — Ihr Mandanten-Onboarding`,
-    mandantInviteBody(kanzleiName, inviteUrl, caseLabel),
+    t.subject(kanzleiName),
+    mandantInviteBody(lang, kanzleiName, inviteUrl, caseLabel),
     'mandant-invite',
     html,
   );
 }
 
 function mandantConfirmationBody(
+  lang: Lang,
   kanzleiName: string,
   caseLabel: string | null,
 ): string {
-  const caseLine = caseLabel ? `\nBetreff: ${caseLabel}` : '';
+  const t = i18n(lang).mail.confirmation;
+  const caseLine = caseLabel ? `\n${t.case_label} ${caseLabel}` : '';
   return [
-    'Sehr geehrte/r Mandant:in,',
+    t.greeting,
     '',
-    `vielen Dank — Ihre Angaben sind bei der Kanzlei ${kanzleiName} eingegangen.${caseLine}`,
+    `${t.intro(kanzleiName)}${caseLine}`,
     '',
-    'Die Kanzlei meldet sich bei Ihnen, sobald die Bearbeitung beginnt oder',
-    'Rückfragen bestehen. Bis dahin sind keine weiteren Schritte erforderlich.',
+    t.next_steps,
     '',
-    'Eine Kopie Ihrer Bestätigungen (Vollmacht, Datenschutz, Honorarvereinbarung)',
-    `wurde der Kanzlei zur Aktenführung zugestellt. Bei Fragen wenden Sie sich`,
-    `direkt an die Kanzlei ${kanzleiName}.`,
+    t.copy_note(kanzleiName),
     '',
     '—',
     'Mandantor',
@@ -367,26 +434,30 @@ export async function sendMandantConfirmationEmail(
   toMandant: string,
   kanzleiName: string,
   caseLabel: string | null,
+  lang: Lang,
   branding: MandantBranding = {},
 ): Promise<{ delivered: Backend }> {
+  const t = i18n(lang).mail.confirmation;
   const html = buildHtmlEmail({
-    preheader: 'Ihre Angaben sind bei der Kanzlei eingegangen.',
+    preheader: t.preheader,
     brandName: kanzleiName,
     logoUrl: branding.logoUrl,
     accentColor: branding.accentColor,
+    kanzleiLinks: brandingLinks(branding),
+    lang,
     bodyHtml: `
-      ${paragraphHtml('Sehr geehrte/r Mandant:in,')}
-      ${paragraphHtml(`vielen Dank — Ihre Angaben sind bei der Kanzlei ${kanzleiName} eingegangen.`)}
-      ${caseLabel ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#555;"><strong>Betreff:</strong> ${escapeHtml(caseLabel)}</p>` : ''}
-      ${paragraphHtml('Die Kanzlei meldet sich bei Ihnen, sobald die Bearbeitung beginnt oder Rückfragen bestehen. Bis dahin sind keine weiteren Schritte erforderlich.')}
-      ${smallHtml(`Eine Kopie Ihrer Bestätigungen (Vollmacht, Datenschutz, Honorarvereinbarung) wurde der Kanzlei zur Aktenführung zugestellt. Bei Fragen wenden Sie sich direkt an die Kanzlei ${kanzleiName}.`)}
+      ${paragraphHtml(t.greeting)}
+      ${paragraphHtml(t.intro(kanzleiName))}
+      ${caseLabel ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #B8956A;font-size:14px;color:#555;"><strong>${escapeHtml(t.case_label)}</strong> ${escapeHtml(caseLabel)}</p>` : ''}
+      ${paragraphHtml(t.next_steps)}
+      ${smallHtml(t.copy_note(kanzleiName))}
     `,
   });
   return sendEmail(
     env,
     toMandant,
-    `${kanzleiName} — Bestätigung Ihrer Angaben`,
-    mandantConfirmationBody(kanzleiName, caseLabel),
+    t.subject,
+    mandantConfirmationBody(lang, kanzleiName, caseLabel),
     'mandant-confirmation',
     html,
   );
@@ -450,16 +521,17 @@ export async function sendTeamInviteEmail(
   );
 }
 
-function reopenBody(kanzleiName: string, reason: string, inviteUrl: string): string {
+function reopenBody(lang: Lang, kanzleiName: string, reason: string, inviteUrl: string): string {
+  const t = i18n(lang).mail.reopen;
   return [
-    'Sehr geehrte/r Mandant:in,',
+    t.greeting,
     '',
-    `${kanzleiName} bittet Sie um Ergänzungen oder Korrekturen an den von Ihnen übermittelten Daten.`,
+    t.intro(kanzleiName),
     '',
-    'Anmerkung der Kanzlei:',
+    t.reason_heading,
     reason,
     '',
-    'Bitte öffnen Sie folgenden Link, passen Sie die betroffenen Schritte an und senden Sie die Akte erneut ab:',
+    t.cta_intro,
     '',
     inviteUrl,
     '',
@@ -475,42 +547,47 @@ export async function sendReopenRequestEmail(
   kanzleiName: string,
   reason: string,
   inviteUrl: string,
+  lang: Lang,
   branding: MandantBranding = {},
 ): Promise<{ delivered: Backend }> {
+  const t = i18n(lang).mail.reopen;
   const html = buildHtmlEmail({
-    preheader: 'Bitte um Ergänzung Ihrer Mandantor-Akte.',
+    preheader: t.preheader,
     brandName: kanzleiName,
     logoUrl: branding.logoUrl,
     accentColor: branding.accentColor,
+    kanzleiLinks: brandingLinks(branding),
+    lang,
     bodyHtml: `
-      ${paragraphHtml('Sehr geehrte/r Mandant:in,')}
-      ${paragraphHtml(`${kanzleiName} bittet Sie um Ergänzungen oder Korrekturen an den von Ihnen übermittelten Daten.`)}
-      <p style="margin:16px 0;padding:16px;background:#fffaf0;border-left:4px solid #B8956A;font-size:14px;color:#1f2937;line-height:1.6;"><strong style="display:block;margin-bottom:6px;">Anmerkung der Kanzlei:</strong>${nl2br(reason)}</p>
-      ${paragraphHtml('Bitte öffnen Sie den folgenden Link, passen Sie die betroffenen Schritte an und senden Sie die Akte erneut ab:')}
-      ${ctaButtonHtml(inviteUrl, 'Akte öffnen', branding.accentColor)}
+      ${paragraphHtml(t.greeting)}
+      ${paragraphHtml(t.intro(kanzleiName))}
+      <p style="margin:16px 0;padding:16px;background:#fffaf0;border-left:4px solid #B8956A;font-size:14px;color:#1f2937;line-height:1.6;"><strong style="display:block;margin-bottom:6px;">${escapeHtml(t.reason_heading)}</strong>${nl2br(reason)}</p>
+      ${paragraphHtml(t.cta_intro)}
+      ${ctaButtonHtml(inviteUrl, t.cta, branding.accentColor)}
     `,
   });
   return sendEmail(
     env,
     toMandant,
-    `${kanzleiName} — Bitte um Ergänzung Ihrer Akte`,
-    reopenBody(kanzleiName, reason, inviteUrl),
+    t.subject(kanzleiName),
+    reopenBody(lang, kanzleiName, reason, inviteUrl),
     'akte-reopen',
     html,
   );
 }
 
-function reminderBody(kanzleiName: string, inviteUrl: string): string {
+function reminderBody(lang: Lang, kanzleiName: string, inviteUrl: string): string {
+  const t = i18n(lang).mail.reminder;
   return [
-    'Sehr geehrte/r Mandant:in,',
+    t.greeting,
     '',
-    `eine kurze Erinnerung: ${kanzleiName} hat ein Mandanten-Onboarding für Sie vorbereitet, das noch nicht abgeschlossen ist.`,
+    t.intro(kanzleiName),
     '',
-    'Bitte schließen Sie die Stammdaten, Bestätigungen und ggf. Dokumenten-Uploads über folgenden Link ab:',
+    t.cta_intro,
     '',
     inviteUrl,
     '',
-    'Falls Sie das Mandat nicht weiterverfolgen möchten oder Rückfragen haben, wenden Sie sich bitte direkt an die Kanzlei.',
+    t.footer(kanzleiName),
     '',
     '—',
     'Mandantor',
@@ -523,26 +600,30 @@ export async function sendReminderEmail(
   toMandant: string,
   kanzleiName: string,
   inviteUrl: string,
+  lang: Lang,
   branding: MandantBranding = {},
 ): Promise<{ delivered: Backend }> {
+  const t = i18n(lang).mail.reminder;
   const html = buildHtmlEmail({
-    preheader: 'Ihr Mandanten-Onboarding ist noch offen.',
+    preheader: t.preheader,
     brandName: kanzleiName,
     logoUrl: branding.logoUrl,
     accentColor: branding.accentColor,
+    kanzleiLinks: brandingLinks(branding),
+    lang,
     bodyHtml: `
-      ${paragraphHtml('Sehr geehrte/r Mandant:in,')}
-      ${paragraphHtml(`eine kurze Erinnerung: ${kanzleiName} hat ein Mandanten-Onboarding für Sie vorbereitet, das noch nicht abgeschlossen ist.`)}
-      ${paragraphHtml('Bitte schließen Sie die Stammdaten, Bestätigungen und ggf. Dokumenten-Uploads über folgenden Link ab:')}
-      ${ctaButtonHtml(inviteUrl, 'Onboarding fortsetzen', branding.accentColor)}
-      ${smallHtml(`Falls Sie das Mandat nicht weiterverfolgen möchten oder Rückfragen haben, wenden Sie sich bitte direkt an die Kanzlei ${kanzleiName}.`)}
+      ${paragraphHtml(t.greeting)}
+      ${paragraphHtml(t.intro(kanzleiName))}
+      ${paragraphHtml(t.cta_intro)}
+      ${ctaButtonHtml(inviteUrl, t.cta, branding.accentColor)}
+      ${smallHtml(t.footer(kanzleiName))}
     `,
   });
   return sendEmail(
     env,
     toMandant,
-    `${kanzleiName} — Erinnerung: Mandanten-Onboarding`,
-    reminderBody(kanzleiName, inviteUrl),
+    t.subject(kanzleiName),
+    reminderBody(lang, kanzleiName, inviteUrl),
     'akte-reminder',
     html,
   );

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { findAkteById, renameAkte } from '../../../lib/akten';
 import { appendAudit, buildAuditContext } from '../../../lib/audit';
+import { rebuildFtsAsync } from '../../../lib/search';
 
 export const prerender = false;
 
@@ -26,5 +27,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     subjectId: akteId,
     payload: { old_label: akte.case_label, new_label: newLabel || null },
   });
+  rebuildFtsAsync(env.DB, locals.runtime?.ctx, akteId);
   return redirect(`/app/akten/${akteId}`, 303);
 };

@@ -2,6 +2,8 @@
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import { findAktenTypById, parseFileHints } from '../../../../lib/akten_typ';
 import { parseSignatureLevels, effectiveLevel } from '../../../../lib/skribble';
+import { AKTEN_TYP_PRESETS } from '../../../../lib/akten_typ_presets';
+import { parsePhases } from '../../../../lib/phases';
 
 export const prerender = false;
 
@@ -36,6 +38,14 @@ const sigOptions = [
   { value: 'FES', label: 'FES — Fortgeschrittene Signatur' },
   { value: 'QES', label: 'QES — Qualifizierte elektronische Signatur (z.B. § 80 ZPO)' },
 ] as const;
+
+const matchingPreset = typ
+  ? AKTEN_TYP_PRESETS.find((p) => p.name === typ.name) ?? null
+  : null;
+
+const includeSachverhalt = typ?.include_sachverhalt === 1;
+const includeWiderruf = typ?.include_widerruf === 1;
+const phases = typ ? parsePhases(typ.phases_json) : [];
 
 const defaultVollmacht = `Hiermit bevollmächtige ich die Kanzlei {KANZLEI}, mich in der vorgenannten Angelegenheit gerichtlich und außergerichtlich zu vertreten. Die Vollmacht erstreckt sich insbesondere auf die Entgegennahme von Zustellungen aller Art, das Stellen aller in Betracht kommenden Anträge, das Einlegen von Rechtsmitteln, deren Zurücknahme oder Verzicht sowie die Annahme von Geld und Wertsachen.`;
 
@@ -108,6 +118,34 @@ const headline = isNew ? 'Neuer Akten-Typ' : `Akten-Typ: ${typ!.name}`;
       </div>
 
       <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Optionale Schritte</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Standardmäßig hat das Mandanten-Onboarding fünf Schritte (Stammdaten, Vollmacht, DSGVO, Honorar, Upload).
+          Für diesen Akten-Typ können zusätzliche Schritte aktiviert werden:
+        </p>
+        <label style="display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; font-size: 14px;">
+          <input type="checkbox" name="include_sachverhalt" value="1" checked={includeSachverhalt} style="margin-top: 4px;" />
+          <span>
+            <strong>Sachverhalt</strong> — Freitextfeld, in dem der Mandant kurz beschreibt, worum es geht (vor Vollmacht).
+          </span>
+        </label>
+        <label style="display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; font-size: 14px;">
+          <input type="checkbox" name="include_widerruf" value="1" checked={includeWiderruf} style="margin-top: 4px;" />
+          <span>
+            <strong>Widerrufsbelehrung</strong> — eigener Pflichtschritt mit Bestätigung, vor Vollmacht/Honorar (BGB §§ 312 ff. — relevant bei Verbrauchermandaten).
+          </span>
+        </label>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Widerrufsbelehrung-Text</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Wird im Schritt „Widerrufsbelehrung" angezeigt (nur wenn oben aktiviert). Leer lassen für den BGB-Standardtext (Anlage 1 zu Art. 246a § 1 EGBGB). Platzhalter <code>{'{KANZLEI}'}</code> verfügbar.
+        </p>
+        <textarea class="app-input" name="widerruf_template" rows="8" style="font-family: var(--sans); resize: vertical;">{typ?.widerruf_template ?? ''}</textarea>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
         <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Signatur-Niveau pro Schritt</h2>
         <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
           Wenn nichts geändert wird, gilt für alle Schritte die einfache elektronische Signatur (EES, eIDAS Art. 25).
@@ -128,6 +166,17 @@ const headline = isNew ? 'Neuer Akten-Typ' : `Akten-Typ: ${typ!.name}`;
       </div>
 
       <div class="app-card" style="margin-bottom: 24px;">
+        <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Status-Pipeline</h2>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+          Eine Phase pro Zeile. Mandant:innen sehen einen Phasen-Stepper, der den
+          aktuellen Bearbeitungsstand visualisiert (z. B. „Ersteinschätzung →
+          Schriftsatz → Einreichung → Verhandlung → Abschluss"). Leer lassen, um
+          keine Pipeline anzuzeigen.
+        </p>
+        <textarea class="app-input" name="phases" rows="6" placeholder={'Ersteinschätzung\nSchriftsatz\nEinreichung\nVerhandlung\nAbschluss'} style="font-family: var(--sans); resize: vertical;">{phases.join('\n')}</textarea>
+      </div>
+
+      <div class="app-card" style="margin-bottom: 24px;">
         <h2 class="serif" style="font-size: 18px; margin-bottom: 8px;">Erwartete Dokumente</h2>
         <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
           Eine Datei pro Zeile. Wird Mandant:innen in Schritt 5 angezeigt: „Bitte laden Sie folgende Dokumente hoch."
@@ -141,8 +190,24 @@ const headline = isNew ? 'Neuer Akten-Typ' : `Akten-Typ: ${typ!.name}`;
       </div>
     </form>
 
+    {!isNew && matchingPreset && (
+      <form method="post" action="/api/kanzlei/akten-typ/reset" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--rule);"
+        onsubmit={`return confirm('Alle Felder dieses Akten-Typs werden auf die Preset-Defaults „${matchingPreset.name}" zurückgesetzt. Bestehende Akten dieses Typs bleiben unverändert. Fortfahren?')`}>
+        <input type="hidden" name="id" value={typ!.id} />
+        <input type="hidden" name="preset_key" value={matchingPreset.key} />
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">
+          Dieser Akten-Typ entspricht der Preset-Vorlage <strong>{matchingPreset.name}</strong>. Sie können alle Felder
+          (Vollmacht, DSGVO, Honorar, Erwartete Dokumente, Signatur-Levels, Optionen, Widerruf) auf die Werks-Defaults
+          zurücksetzen.
+        </p>
+        <button type="submit" class="cta-button" style="background: var(--paper); color: var(--ink); border-color: var(--rule);">
+          Auf Preset-Defaults zurücksetzen
+        </button>
+      </form>
+    )}
+
     {!isNew && (
-      <form method="post" action="/api/kanzlei/akten-typ/delete" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--rule);"
+      <form method="post" action="/api/kanzlei/akten-typ/delete" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--rule);"
         onsubmit="return confirm('Akten-Typ löschen? Bestehende Akten dieses Typs bleiben — verlieren aber die Typ-Zuordnung.')">
         <input type="hidden" name="id" value={typ!.id} />
         <button type="submit" class="cta-button cta-button--danger">Akten-Typ löschen</button>

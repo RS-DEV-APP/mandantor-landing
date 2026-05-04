@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { sendReminderEmail } from '../../../lib/mail';
 import { findKanzleiById } from '../../../lib/db';
+import { normalizeLang } from '../../../lib/i18n';
 
 export const prerender = false;
 
@@ -19,6 +20,7 @@ type ReminderRow = {
   mandant_email: string | null;
   reminder_sent_at: number | null;
   created_at: number;
+  lang: string;
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -36,7 +38,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   // never got a reminder OR last reminder is older than the cooldown.
   const result = await env.DB
     .prepare(
-      `SELECT id, kanzlei_id, mandant_token, case_label, mandant_email, reminder_sent_at, created_at
+      `SELECT id, kanzlei_id, mandant_token, case_label, mandant_email, reminder_sent_at, created_at, lang
        FROM akte
        WHERE status IN ('draft', 'in_progress')
          AND mandant_email IS NOT NULL
@@ -65,9 +67,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const branding = {
       logoUrl: kanzlei.logo_r2_key ? `${origin}/api/kanzlei/${kanzlei.id}/logo` : null,
       accentColor: kanzlei.brand_color,
+      impressumUrl: kanzlei.impressum_url,
+      datenschutzUrl: kanzlei.datenschutz_url,
     };
     try {
-      await sendReminderEmail(env, row.mandant_email, kanzlei.display_name, inviteUrl, branding);
+      await sendReminderEmail(env, row.mandant_email, kanzlei.display_name, inviteUrl, normalizeLang(row.lang), branding);
       await env.DB
         .prepare('UPDATE akte SET reminder_sent_at = ?1 WHERE id = ?2')
         .bind(now, row.id)

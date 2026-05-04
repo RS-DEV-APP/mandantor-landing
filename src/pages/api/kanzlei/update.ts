@@ -15,6 +15,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const vollmachtTemplate = (formData.get('vollmacht_template') ?? '').toString().trim();
   const honorarHourly = (formData.get('honorar_hourly') ?? '').toString().trim();
   const honorarAdvance = (formData.get('honorar_advance') ?? '').toString().trim();
+  const impressumUrl = (formData.get('impressum_url') ?? '').toString().trim();
+  const datenschutzUrl = (formData.get('datenschutz_url') ?? '').toString().trim();
 
   if (!displayName) {
     return redirect(
@@ -28,12 +30,22 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       303,
     );
   }
+  for (const [field, val] of [['Impressum-URL', impressumUrl], ['Datenschutz-URL', datenschutzUrl]] as const) {
+    if (val && !val.startsWith('https://')) {
+      return redirect(
+        '/app/settings?error=' + encodeURIComponent(`${field} muss mit https:// beginnen`),
+        303,
+      );
+    }
+  }
 
   await updateKanzleiSettings(env.DB, session.kanzlei_id, {
     display_name: displayName,
     vollmacht_template: vollmachtTemplate || null,
     honorar_hourly: honorarHourly || null,
     honorar_advance: honorarAdvance || null,
+    impressum_url: impressumUrl || null,
+    datenschutz_url: datenschutzUrl || null,
   });
 
   return redirect('/app/settings?saved=1', 303);

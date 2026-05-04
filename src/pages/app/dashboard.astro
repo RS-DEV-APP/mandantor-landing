@@ -1,8 +1,9 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { findKanzleiById } from '../../lib/db';
-import { listAkten } from '../../lib/akten';
+import { listAkten, listAktenByIds } from '../../lib/akten';
 import { listAktenTypen } from '../../lib/akten_typ';
+import { searchAkten } from '../../lib/search';
 
 export const prerender = false;
 
@@ -23,7 +24,20 @@ const showArchived = url.searchParams.get('archived_view') === '1';
 const archivedNotice = url.searchParams.get('archived');
 const queryRaw = url.searchParams.get('q') ?? '';
 const query = queryRaw.trim();
-const akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived, query });
+// Wenn ein Suchbegriff vorhanden ist: erst FTS5-Match holen, dann diese Akten lesen.
+// Das deckt jetzt Stammdaten, Sachverhalt, Notizen + KI-Zusammenfassung mit ab —
+// nicht nur case_label/mandant_name/email wie früher.
+let akten;
+if (query) {
+  const matchIds = await searchAkten(env.DB, kanzlei.id, query, 100);
+  if (matchIds.length === 0) {
+    akten = [];
+  } else {
+    akten = await listAktenByIds(env.DB, kanzlei.id, matchIds, { includeArchived: showArchived });
+  }
+} else {
+  akten = await listAkten(env.DB, kanzlei.id, { includeArchived: showArchived });
+}
 const aktenTypen = await listAktenTypen(env.DB, kanzlei.id);
 const visibleAkten = showArchived
   ? akten.filter((a) => a.status === 'archived')
@@ -93,7 +107,7 @@ const needsKanzleiSetup =
             </label>
           )}
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 140px; gap: 12px;">
           <label class="app-label" style="margin: 0;">
             <span class="app-label-text">Mandant-E-Mail (optional)</span>
             <input type="email" name="mandant_email" value={url.searchParams.get('mandant_email') ?? ''} placeholder="mandant@beispiel.de" class="app-input" />
@@ -101,6 +115,13 @@ const needsKanzleiSetup =
           <label class="app-label" style="margin: 0;">
             <span class="app-label-text">Mandant-Name (optional)</span>
             <input type="text" name="mandant_name" value={url.searchParams.get('mandant_name') ?? ''} placeholder="Anna Beispiel" class="app-input" />
+          </label>
+          <label class="app-label" style="margin: 0;">
+            <span class="app-label-text">Sprache</span>
+            <select name="lang" class="app-input">
+              <option value="de" selected={url.searchParams.get('lang') !== 'en'}>Deutsch</option>
+              <option value="en" selected={url.searchParams.get('lang') === 'en'}>English</option>
+            </select>
           </label>
         </div>
         {url.searchParams.get('conflict_id') && (
@@ -193,6 +214,8 @@ const needsKanzleiSetup =
               <li style="border-bottom: 1px solid var(--rule); position: relative;">
                 <a href={`/app/akten/${a.id}`} class="akte-row">
                   <span class="akte-row-title">
+                    {a.ai_sentiment === 'urgent' && <span title="KI: Eilig" style="color: #7a4f0a; margin-right: 8px;">●</span>}
+                    {a.ai_sentiment === 'frustrated' && <span title="KI: Frustriert" style="color: #b23a3a; margin-right: 8px;">●</span>}
                     {a.case_label ?? 'Ohne Bezeichnung'}
                     {a.mandant_name && <span style="color: var(--muted); font-size: 13px; margin-left: 8px;">· {a.mandant_name}</span>}
                   </span>
